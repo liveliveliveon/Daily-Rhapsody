@@ -32,7 +32,7 @@ export default function Cover() {
         </p>
         <nav className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm tracking-wide">
           <Link
-            href="/#entries"
+            href="/entries"
             className="transition-opacity duration-200 ease-out hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-transparent rounded"
           >
             博客
@@ -54,16 +54,16 @@ export default function Cover() {
         </nav>
       </div>
 
-      {/* 向下滚动提示 */}
-      <a
-        href="/#entries"
+      {/* 进入博客列表 */}
+      <Link
+        href="/entries"
         className="absolute bottom-8 left-1/2 z-10 -translate-x-1/2 rounded-full p-2 text-white/80 transition-all duration-300 ease-out hover:scale-110 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/50"
-        aria-label="滚动到内容"
+        aria-label="进入博客列表"
       >
         <svg className="h-6 w-6 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
         </svg>
-      </a>
+      </Link>
     </header>
   );
 }
