@@ -1,17 +1,56 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { allDiaries } from "./diaries.data";
 
 const PAGE_SIZE = 10;
 
+function getTagCounts(diaries: { tags?: string[] }[]) {
+  const count = new Map<string, number>();
+  for (const d of diaries) {
+    const tags = d.tags ?? [];
+    for (const t of tags) {
+      count.set(t, (count.get(t) ?? 0) + 1);
+    }
+  }
+  return Array.from(count.entries())
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value);
+}
+
+function getSizeClass(count: number, maxCount: number) {
+  if (maxCount <= 0) return "text-xs";
+  const r = count / maxCount;
+  if (r >= 0.7) return "text-base sm:text-lg";
+  if (r >= 0.4) return "text-sm sm:text-base";
+  if (r >= 0.2) return "text-xs sm:text-sm";
+  return "text-[0.65rem] sm:text-xs";
+}
+
 export default function Home() {
   const [page, setPage] = useState(1);
   const [inputPage, setInputPage] = useState<string>("1");
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
 
-  const totalPosts = allDiaries.length;
+  const filteredDiaries = useMemo(() => {
+    if (!selectedTag) return allDiaries;
+    return allDiaries.filter((d) => (d.tags ?? []).includes(selectedTag));
+  }, [selectedTag]);
+
+  const tagCounts = useMemo(() => getTagCounts(allDiaries), []);
+  const maxTagCount = tagCounts[0]?.value ?? 1;
+
+  const totalPosts = filteredDiaries.length;
   const totalPages = Math.max(1, Math.ceil(totalPosts / PAGE_SIZE));
-  const currentEntries = allDiaries.slice(
+
+  useEffect(() => {
+    if (page > totalPages && totalPages >= 1) {
+      setPage(totalPages);
+      setInputPage(String(totalPages));
+    }
+  }, [totalPages, page]);
+
+  const currentEntries = filteredDiaries.slice(
     (page - 1) * PAGE_SIZE,
     page * PAGE_SIZE
   );
@@ -26,11 +65,18 @@ export default function Home() {
     setPage(next);
     setInputPage(String(next));
   };
+
+  const handleTagClick = (tag: string) => {
+    setSelectedTag((prev) => (prev === tag ? null : tag));
+    setPage(1);
+    setInputPage("1");
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-zinc-100 to-white px-4 py-10 font-sans text-zinc-900 dark:from-black dark:via-zinc-950 dark:to-black dark:text-zinc-50">
       <main className="mx-auto flex max-w-3xl flex-col">
         {/* 英雄区 */}
-        <header className="mb-12">
+        <header className="mb-8">
           <h1 className="mt-4 text-4xl font-semibold tracking-tight sm:text-5xl">
             Daily Rhapsody
           </h1>
@@ -38,6 +84,43 @@ export default function Home() {
             I think, therefore I am.
           </p>
         </header>
+
+        {/* 标签词云 */}
+        {tagCounts.length > 0 && (
+          <section className="mb-10 rounded-2xl border border-zinc-200 bg-white/60 px-4 py-5 dark:border-zinc-800 dark:bg-zinc-900/40">
+            <p className="mb-3 text-[0.7rem] uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+              标签
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              {tagCounts.map(({ name, value }) => (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={() => handleTagClick(name)}
+                  className={`rounded-full px-2.5 py-1 transition ${getSizeClass(value, maxTagCount)} ${
+                    selectedTag === name
+                      ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+                      : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                  }`}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
+            {selectedTag && (
+              <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
+                当前筛选：{selectedTag}（共 {totalPosts} 篇）
+                <button
+                  type="button"
+                  onClick={() => handleTagClick(selectedTag)}
+                  className="ml-2 underline"
+                >
+                  取消
+                </button>
+              </p>
+            )}
+          </section>
+        )}
 
         {/* 日记列表 */}
         <section className="space-y-4 border-t border-zinc-200 pt-6 text-sm dark:border-zinc-800">
@@ -49,10 +132,22 @@ export default function Home() {
               <div className="mt-1 shrink-0 text-[0.7rem] uppercase tracking-[0.18em] text-zinc-500 whitespace-nowrap dark:text-zinc-500">
                 {item.date}
               </div>
-              <div className="flex-1">
+                <div className="flex-1">
                 <h2 className="text-sm font-medium tracking-tight group-hover:text-zinc-950 dark:group-hover:text-zinc-50">
                   {item.title}
                 </h2>
+                {(item.tags ?? []).length > 0 && (
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    {(item.tags ?? []).map((tag) => (
+                      <span
+                        key={tag}
+                        className="rounded bg-zinc-200/80 px-1.5 py-0.5 text-[0.65rem] text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <p className="mt-2 whitespace-pre-line text-[0.82rem] leading-relaxed text-zinc-600 dark:text-zinc-400">
                   {item.summary}
                 </p>

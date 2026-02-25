@@ -7,6 +7,7 @@ import path from "node:path";
 
 const SITE = "dailyrhapsody.data.blog";
 const PER_PAGE = 100;
+const API_BASE = `https://public-api.wordpress.com/wp/v2/sites/${SITE}`;
 
 const stripHtml = (html) =>
   html
@@ -16,13 +17,29 @@ const stripHtml = (html) =>
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
+async function fetchAllTags() {
+  const idToName = new Map();
+  let page = 1;
+  while (page <= 5) {
+    const res = await fetch(`${API_BASE}/tags?per_page=100&page=${page}`);
+    if (!res.ok) break;
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) break;
+    for (const t of data) idToName.set(t.id, t.name || "");
+    if (data.length < 100) break;
+    page += 1;
+    await new Promise((r) => setTimeout(r, 400));
+  }
+  return idToName;
+}
+
 async function fetchAllPosts() {
   const all = [];
   let page = 1;
 
   // 最多防御性抓 10 页（1000 篇）
   while (page <= 10) {
-    const url = `https://public-api.wordpress.com/wp/v2/sites/${SITE}/posts?per_page=${PER_PAGE}&page=${page}`;
+    const url = `${API_BASE}/posts?per_page=${PER_PAGE}&page=${page}`;
     console.log(`Fetching: ${url}`);
 
     const res = await fetch(url);
@@ -49,7 +66,7 @@ async function fetchAllPosts() {
   return all;
 }
 
-function mapToDiaries(posts) {
+function mapToDiaries(posts, tagIdToName) {
   return posts
     .sort(
       (a, b) =>
@@ -65,20 +82,30 @@ function mapToDiaries(posts) {
       const title = stripHtml(titleHtml);
       const summary = stripHtml(excerptHtml || post.content?.rendered || "");
 
+      const tagIds = Array.isArray(post.tags) ? post.tags : [];
+      const tags = tagIds
+        .map((id) => tagIdToName.get(id))
+        .filter(Boolean);
+
       return {
         id: post.id,
         date,
         title,
         summary,
+        tags,
       };
     });
 }
 
 async function main() {
+  console.log("Fetching tags...");
+  const tagIdToName = await fetchAllTags();
+  console.log(`Tags: ${tagIdToName.size}`);
+
   const posts = await fetchAllPosts();
   console.log(`Total posts fetched: ${posts.length}`);
 
-  const diaries = mapToDiaries(posts);
+  const diaries = mapToDiaries(posts, tagIdToName);
 
   const outPath = path.join(
     process.cwd(),
@@ -92,6 +119,7 @@ async function main() {
     `  date: string;\n` +
     `  title: string;\n` +
     `  summary: string;\n` +
+    `  tags?: string[];\n` +
     `};\n\n` +
     `export const allDiaries: Diary[] = ${JSON.stringify(
       diaries,
