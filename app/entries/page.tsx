@@ -221,7 +221,13 @@ export default function EntriesPage() {
           <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-zinc-200 pt-4 text-[0.75rem] text-zinc-500 dark:border-zinc-800 dark:text-zinc-500">
             <button
               type="button"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              onClick={() =>
+                setPage((p) => {
+                  const next = Math.max(1, p - 1);
+                  setInputPage(String(next));
+                  return next;
+                })
+              }
               disabled={page === 1}
               className="rounded-full border border-zinc-300 px-3 py-1 transition-apple disabled:opacity-40 hover:scale-[1.02] hover:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-400 focus:ring-offset-2 dark:border-zinc-700 dark:hover:bg-zinc-900 dark:focus:ring-offset-zinc-950"
             >
@@ -255,7 +261,12 @@ export default function EntriesPage() {
             <button
               type="button"
               onClick={() => {
-                if (page < totalPages) setPage((p) => p + 1);
+                if (page < totalPages)
+                  setPage((p) => {
+                    const next = Math.min(totalPages, p + 1);
+                    setInputPage(String(next));
+                    return next;
+                  });
               }}
               disabled={page >= totalPages}
               className="rounded-full border border-zinc-300 px-3 py-1 transition-apple disabled:opacity-40 hover:scale-[1.02] hover:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-400 focus:ring-offset-2 dark:border-zinc-700 dark:hover:bg-zinc-900 dark:focus:ring-offset-zinc-950"
