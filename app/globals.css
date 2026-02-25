@@ -61,3 +61,23 @@ body {
   transform: rotateX(0);
   opacity: 1;
 }
+
+/* 分页数字框：隐藏浏览器自带的上下箭头，避免突兀 */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: none;
+}
+
+/* 翻页时列表淡入，过渡更柔和 */
+@keyframes entries-page-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.entries-page-fade-in {
+  animation: entries-page-fade 0.4s cubic-bezier(0.25, 0.1, 0.25, 1) both;
+}

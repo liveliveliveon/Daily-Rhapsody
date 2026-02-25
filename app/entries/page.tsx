@@ -152,8 +152,11 @@ export default function EntriesPage() {
             </section>
           )}
 
-          {/* 日记列表 */}
-          <section className="space-y-4 border-t border-zinc-200 pt-6 text-sm dark:border-zinc-800">
+          {/* 日记列表：翻页时淡入 */}
+          <section
+            key={page}
+            className="entries-page-fade-in space-y-4 border-t border-zinc-200 pt-6 text-sm dark:border-zinc-800"
+          >
             {loading && (
               <p className="px-3 text-xs text-zinc-500 dark:text-zinc-400">
                 加载中…
@@ -240,7 +243,7 @@ export default function EntriesPage() {
                     applyPageInput(inputPage);
                   }
                 }}
-                className="flex h-7 w-14 items-center justify-center rounded-full border border-zinc-300 bg-transparent px-2 text-center text-[0.8rem] leading-none outline-none appearance-none transition-apple focus:border-zinc-500 focus:ring-2 focus:ring-zinc-400/30 dark:border-zinc-700 dark:appearance-none dark:focus:border-zinc-400"
+                className="pagination-page-input flex h-7 w-14 items-center justify-center rounded-full border border-zinc-300 bg-transparent px-2 text-center text-[0.8rem] leading-none outline-none transition-apple focus:border-zinc-500 focus:ring-2 focus:ring-zinc-400/30 dark:border-zinc-700 dark:focus:border-zinc-400"
               />
               <span>
                 页
