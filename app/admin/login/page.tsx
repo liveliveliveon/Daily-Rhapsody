@@ -45,7 +45,7 @@ function LoginForm() {
           管理员登录
         </h1>
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-          Daily Rhapsody 后台
+          DailyRhapsody 后台
         </p>
         <label className="mt-6 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
           密码

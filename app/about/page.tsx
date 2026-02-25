@@ -16,13 +16,13 @@ export default function AboutPage() {
           关于
         </h1>
         <p className="mt-6 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-          Daily Rhapsody 是一本个人日记与随想录。
+          DailyRhapsody 是一本个人日记与随想录。
         </p>
         <p className="mt-4 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
           I think, therefore I am.
         </p>
         <footer className="mt-16 border-t border-zinc-200 pt-6 text-[0.7rem] text-zinc-500 dark:border-zinc-800 dark:text-zinc-500">
-          <span>© {new Date().getFullYear()} Daily Rhapsody</span>
+          <span>© {new Date().getFullYear()} DailyRhapsody</span>
         </footer>
       </main>
     </div>

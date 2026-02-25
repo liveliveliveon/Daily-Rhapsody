@@ -22,7 +22,7 @@ export default function TheMomentPage() {
           记录当下。此刻即永恒。
         </p>
         <footer className="mt-16 border-t border-zinc-200 pt-6 text-[0.7rem] text-zinc-500 dark:border-zinc-800 dark:text-zinc-500">
-          <span>© {new Date().getFullYear()} Daily Rhapsody</span>
+          <span>© {new Date().getFullYear()} DailyRhapsody</span>
         </footer>
       </main>
     </div>

@@ -233,7 +233,7 @@ export default function Home() {
 
         {/* 底部细线签名 */}
         <footer className="mt-10 border-t border-zinc-200 pt-4 text-[0.7rem] text-zinc-500 dark:border-zinc-800 dark:text-zinc-500">
-          <span>© {new Date().getFullYear()} Daily Rhapsody</span>
+          <span>© {new Date().getFullYear()} DailyRhapsody</span>
         </footer>
       </main>
     </div>
