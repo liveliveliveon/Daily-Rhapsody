@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 
 type Diary = {
@@ -9,6 +10,7 @@ type Diary = {
   title: string;
   summary: string;
   tags?: string[];
+  images?: string[];
 };
 
 const PAGE_SIZE = 10;
@@ -166,15 +168,32 @@ export default function EntriesPage() {
               currentEntries.map((item) => (
                 <article
                   key={item.id}
-                  className="group flex gap-4 rounded-2xl px-3 py-4 transition-apple hover:bg-zinc-100/70 hover:shadow-md dark:hover:bg-zinc-900/80 dark:hover:shadow-black/10"
+                  className="group flex flex-col gap-3 rounded-2xl px-3 py-4 transition-apple hover:bg-zinc-100/70 hover:shadow-md dark:hover:bg-zinc-900/80 dark:hover:shadow-black/10 sm:flex-row sm:gap-4"
                 >
-                  <div className="mt-1 shrink-0 text-[0.7rem] uppercase tracking-[0.18em] text-zinc-500 whitespace-nowrap dark:text-zinc-500">
-                    {item.date}
-                  </div>
-                  <div className="flex-1">
-                    <h2 className="text-sm font-medium tracking-tight group-hover:text-zinc-950 dark:group-hover:text-zinc-50">
-                      {item.title}
-                    </h2>
+                  {(item.images ?? []).length > 0 && (
+                    <div className="flex shrink-0 gap-1 overflow-hidden rounded-xl sm:order-none sm:w-28">
+                      {item.images!.slice(0, 3).map((src) => (
+                        <div key={src} className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-zinc-200 dark:bg-zinc-800 sm:h-20 sm:w-20">
+                          <Image
+                            src={src}
+                            alt=""
+                            fill
+                            className="object-cover"
+                            sizes="96px"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline gap-2">
+                      <span className="shrink-0 text-[0.7rem] uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-500">
+                        {item.date}
+                      </span>
+                      <h2 className="text-sm font-medium tracking-tight group-hover:text-zinc-950 dark:group-hover:text-zinc-50">
+                        {item.title}
+                      </h2>
+                    </div>
                     {(item.tags ?? []).length > 0 && (
                       <div className="mt-1.5 flex flex-wrap gap-1">
                         {(item.tags ?? []).map((tag) => (

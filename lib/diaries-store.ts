@@ -7,6 +7,7 @@ export type Diary = {
   title: string;
   summary: string;
   tags?: string[];
+  images?: string[];
 };
 
 const DATA_DIR = join(process.cwd(), "data");

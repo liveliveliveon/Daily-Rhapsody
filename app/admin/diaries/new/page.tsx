@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import ImageUpload from "../../ImageUpload";
 
 export default function NewDiaryPage() {
   const [date, setDate] = useState(
@@ -11,6 +12,7 @@ export default function NewDiaryPage() {
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
   const [tagsStr, setTagsStr] = useState("");
+  const [images, setImages] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
@@ -27,7 +29,7 @@ export default function NewDiaryPage() {
       const res = await fetch("/api/diaries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, title, summary, tags }),
+        body: JSON.stringify({ date, title, summary, tags, images }),
       });
       if (!res.ok) {
         const data = await res.json();
@@ -95,6 +97,14 @@ export default function NewDiaryPage() {
             rows={10}
             className="mt-1 w-full rounded-lg border border-zinc-300 bg-transparent px-3 py-2 text-zinc-900 dark:border-zinc-700 dark:text-zinc-50"
           />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            图片（可多张，用于 THE MOMENT 与博客列表展示）
+          </label>
+          <div className="mt-1">
+            <ImageUpload value={images} onChange={setImages} />
+          </div>
         </div>
         <div>
           <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">

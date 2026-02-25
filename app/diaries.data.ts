@@ -4,6 +4,7 @@ export type Diary = {
   title: string;
   summary: string;
   tags?: string[];
+  images?: string[];
 };
 
 export const allDiaries: Diary[] = [

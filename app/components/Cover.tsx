@@ -54,14 +54,14 @@ export default function Cover() {
         </nav>
       </div>
 
-      {/* 进入博客列表 */}
+      {/* 进入博客列表 - 苹果风：带圈、透明背景、细边框 */}
       <Link
         href="/entries"
-        className="absolute bottom-8 left-1/2 z-10 -translate-x-1/2 rounded-full p-2 text-white/80 transition-all duration-300 ease-out hover:scale-110 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/50"
+        className="absolute bottom-8 left-1/2 z-10 flex h-11 w-11 -translate-x-1/2 items-center justify-center rounded-full border border-white/40 bg-transparent text-white/80 transition-all duration-200 ease-out hover:scale-105 hover:border-white/70 hover:bg-white/20 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-transparent"
         aria-label="进入博客列表"
       >
-        <svg className="h-6 w-6 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
         </svg>
       </Link>
     </header>

@@ -13,7 +13,7 @@ export async function POST(req: Request) {
   if (!ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  let body: { date?: string; title?: string; summary?: string; tags?: string[] };
+  let body: { date?: string; title?: string; summary?: string; tags?: string[]; images?: string[] };
   try {
     body = await req.json();
   } catch {
@@ -27,6 +27,7 @@ export async function POST(req: Request) {
     title: body.title ?? "",
     summary: body.summary ?? "",
     tags: Array.isArray(body.tags) ? body.tags : [],
+    images: Array.isArray(body.images) ? body.images : [],
   };
   diaries.unshift(newDiary);
   diaries.sort(
