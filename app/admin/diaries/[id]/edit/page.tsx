@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
-import ImageUpload from "../../ImageUpload";
+import ImageUpload from "../../../ImageUpload";
 
 export default function EditDiaryPage() {
   const params = useParams();
