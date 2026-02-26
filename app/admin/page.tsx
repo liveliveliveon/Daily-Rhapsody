@@ -88,6 +88,11 @@ export default function AdminPage() {
               <p className="truncate font-medium text-zinc-900 dark:text-zinc-50">
                 {d.title || "（无标题）"}
               </p>
+              {d.summary && (
+                <p className="mt-0.5 line-clamp-2 text-xs text-zinc-600 dark:text-zinc-300">
+                  {d.summary}
+                </p>
+              )}
               {(d.tags ?? []).length > 0 && (
                 <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
                   {d.tags!.join(" · ")}
