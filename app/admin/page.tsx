@@ -81,22 +81,36 @@ export default function AdminPage() {
             key={d.id}
             className="flex items-center justify-between gap-4 rounded-lg border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900"
           >
-            <div className="min-w-0 flex-1">
-              <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                {d.date}
-              </span>
-              <p className="truncate font-medium text-zinc-900 dark:text-zinc-50">
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="flex items-baseline gap-2">
+                <span className="text-xs font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                  {d.date}
+                </span>
+              </div>
+              <p className="truncate text-base font-semibold text-zinc-900 dark:text-zinc-50">
                 {d.title || "（无标题）"}
               </p>
               {d.summary && (
-                <p className="mt-0.5 line-clamp-2 text-xs text-zinc-600 dark:text-zinc-300">
-                  {d.summary}
-                </p>
+                <div className="rounded-md border border-zinc-200 bg-zinc-50/80 px-2.5 py-1.5 dark:border-zinc-700 dark:bg-zinc-800/50">
+                  <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                    摘要
+                  </span>
+                  <p className="mt-0.5 line-clamp-2 text-sm leading-snug text-zinc-600 dark:text-zinc-400">
+                    {d.summary}
+                  </p>
+                </div>
               )}
               {(d.tags ?? []).length > 0 && (
-                <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-                  {d.tags!.join(" · ")}
-                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {(d.tags ?? []).map((tag) => (
+                    <span
+                      key={tag}
+                      className="inline-flex rounded-full bg-zinc-200 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-600 dark:text-zinc-300"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
               )}
             </div>
             <div className="flex shrink-0 gap-2">
