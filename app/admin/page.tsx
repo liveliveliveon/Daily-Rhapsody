@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import ImageUpload from "./ImageUpload";
 
 type Diary = {
   id: number;
@@ -9,10 +10,23 @@ type Diary = {
   title: string;
   summary: string;
   tags?: string[];
+  pinned?: boolean;
+};
+
+type Profile = {
+  name: string;
+  signature: string;
+  avatar: string;
+  location: string;
+  industry: string;
+  zodiac: string;
+  headerBg: string;
 };
 
 export default function AdminPage() {
   const [diaries, setDiaries] = useState<Diary[]>([]);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profileSaving, setProfileSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [seedLoading, setSeedLoading] = useState(false);
 
@@ -31,6 +45,13 @@ export default function AdminPage() {
     load();
   }, []);
 
+  useEffect(() => {
+    fetch("/api/profile")
+      .then((res) => res.json())
+      .then((data) => setProfile(data))
+      .catch(() => setProfile(null));
+  }, []);
+
   async function seed() {
     setSeedLoading(true);
     try {
@@ -47,12 +68,115 @@ export default function AdminPage() {
     if (res.ok) await load();
   }
 
+  async function saveProfile(e: React.FormEvent) {
+    e.preventDefault();
+    if (!profile) return;
+    setProfileSaving(true);
+    try {
+      const res = await fetch("/api/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(profile),
+      });
+      if (res.ok) setProfile(await res.json());
+    } finally {
+      setProfileSaving(false);
+    }
+  }
+
   if (loading) {
     return <p className="text-zinc-500">加载中…</p>;
   }
 
   return (
     <div>
+      {/* 个人信息 */}
+      {profile && (
+        <section className="mb-8 rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+          <h2 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+            个人信息（博客顶部展示）
+          </h2>
+          <form onSubmit={saveProfile} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">姓名</label>
+              <input
+                type="text"
+                value={profile.name}
+                onChange={(e) => setProfile((p) => p && { ...p, name: e.target.value })}
+                className="mt-1 w-full max-w-md rounded-lg border border-zinc-300 bg-transparent px-3 py-2 text-zinc-900 dark:border-zinc-700 dark:text-zinc-50"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">签名</label>
+              <input
+                type="text"
+                value={profile.signature}
+                onChange={(e) => setProfile((p) => p && { ...p, signature: e.target.value })}
+                placeholder="dailyrhapsody.data.blog"
+                className="mt-1 w-full max-w-md rounded-lg border border-zinc-300 bg-transparent px-3 py-2 text-zinc-900 dark:border-zinc-700 dark:text-zinc-50"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">头像</label>
+              <div className="mt-1">
+                <ImageUpload
+                  value={profile.avatar ? [profile.avatar] : []}
+                  onChange={(urls) => setProfile((p) => p && { ...p, avatar: urls[0] ?? "" })}
+                  maxCount={1}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">位置</label>
+              <input
+                type="text"
+                value={profile.location}
+                onChange={(e) => setProfile((p) => p && { ...p, location: e.target.value })}
+                placeholder="杭州"
+                className="mt-1 w-full max-w-md rounded-lg border border-zinc-300 bg-transparent px-3 py-2 text-zinc-900 dark:border-zinc-700 dark:text-zinc-50"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">行业</label>
+              <input
+                type="text"
+                value={profile.industry}
+                onChange={(e) => setProfile((p) => p && { ...p, industry: e.target.value })}
+                placeholder="计算机硬件行业"
+                className="mt-1 w-full max-w-md rounded-lg border border-zinc-300 bg-transparent px-3 py-2 text-zinc-900 dark:border-zinc-700 dark:text-zinc-50"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">星座</label>
+              <input
+                type="text"
+                value={profile.zodiac}
+                onChange={(e) => setProfile((p) => p && { ...p, zodiac: e.target.value })}
+                placeholder="天秤座"
+                className="mt-1 w-full max-w-md rounded-lg border border-zinc-300 bg-transparent px-3 py-2 text-zinc-900 dark:border-zinc-700 dark:text-zinc-50"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">顶部背景图</label>
+              <div className="mt-1">
+                <ImageUpload
+                  value={profile.headerBg ? [profile.headerBg] : []}
+                  onChange={(urls) => setProfile((p) => p && { ...p, headerBg: urls[0] ?? "" })}
+                  maxCount={1}
+                />
+              </div>
+            </div>
+            <button
+              type="submit"
+              disabled={profileSaving}
+              className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+            >
+              {profileSaving ? "保存中…" : "保存个人信息"}
+            </button>
+          </form>
+        </section>
+      )}
+
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
           文章列表（共 {diaries.length} 篇）
@@ -86,6 +210,11 @@ export default function AdminPage() {
                 <span className="shrink-0 text-[0.7rem] uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-500">
                   {d.date}
                 </span>
+                {d.pinned && (
+                  <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[0.65rem] font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
+                    置顶
+                  </span>
+                )}
                 <h2 className="text-sm font-medium tracking-tight text-zinc-900 dark:text-zinc-50">
                   {d.title || "（无标题）"}
                 </h2>

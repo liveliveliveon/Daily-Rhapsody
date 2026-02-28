@@ -30,10 +30,10 @@ export default function TheMomentPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-zinc-100 to-white font-sans text-zinc-900 dark:from-black dark:via-zinc-950 dark:to-black dark:text-zinc-50">
-      <main className="mx-auto max-w-2xl px-4 py-16">
+      <main className="mx-auto max-w-2xl px-4 py-8">
         <Link
           href="/"
-          className="mb-10 inline-block text-sm text-zinc-500 transition-opacity hover:opacity-80 dark:text-zinc-400"
+          className="mb-6 inline-block text-sm text-zinc-500 transition-opacity hover:opacity-80 dark:text-zinc-400"
         >
           ← 返回首页
         </Link>
@@ -48,15 +48,15 @@ export default function TheMomentPage() {
         </p>
 
         {loading && (
-          <p className="mt-10 text-sm text-zinc-500 dark:text-zinc-400">加载中…</p>
+          <p className="mt-6 text-sm text-zinc-500 dark:text-zinc-400">加载中…</p>
         )}
         {!loading && diaries.length === 0 && (
-          <p className="mt-10 text-sm text-zinc-500 dark:text-zinc-400">
+          <p className="mt-6 text-sm text-zinc-500 dark:text-zinc-400">
             暂无带图片的瞬间。在后台写博客时上传图片即可出现在这里。
           </p>
         )}
         {!loading && diaries.length > 0 && (
-          <div className="mt-10 space-y-8">
+          <div className="mt-6 space-y-6">
             {diaries.map((item) => (
               <article
                 key={item.id}
@@ -95,7 +95,7 @@ export default function TheMomentPage() {
                 </div>
                 <div className="border-t border-zinc-100 px-4 py-3 dark:border-zinc-800">
                   <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
-                    滕君
+                    DailyRhapsody
                   </p>
                   <p className="text-[0.75rem] text-zinc-500 dark:text-zinc-400">
                     {(() => {
@@ -132,7 +132,7 @@ export default function TheMomentPage() {
           </div>
         )}
 
-        <footer className="mt-16 border-t border-zinc-200 pt-6 text-[0.7rem] text-zinc-500 dark:border-zinc-800 dark:text-zinc-500">
+        <footer className="mt-6 border-t border-zinc-200 pt-5 text-[0.7rem] text-zinc-500 dark:border-zinc-800 dark:text-zinc-500">
           <span>© {new Date().getFullYear()} DailyRhapsody</span>
         </footer>
       </main>

@@ -32,7 +32,7 @@ export async function PUT(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { id } = await params;
-  let body: { date?: string; publishedAt?: string; title?: string; summary?: string; tags?: string[]; images?: string[] };
+  let body: { date?: string; publishedAt?: string; title?: string; summary?: string; tags?: string[]; images?: string[]; pinned?: boolean };
   try {
     body = await req.json();
   } catch {
@@ -43,21 +43,34 @@ export async function PUT(
   if (index === -1) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+  if (body.pinned) {
+    const otherPinned = diaries.find((d) => d.pinned && String(d.id) !== id);
+    if (otherPinned) {
+      return NextResponse.json(
+        { error: "已有置顶博客，请先取消该篇置顶后再设置本文置顶。" },
+        { status: 400 }
+      );
+    }
+  }
   const updated: Diary = {
     ...diaries[index],
     date: body.date ?? diaries[index].date,
     publishedAt: body.publishedAt !== undefined ? body.publishedAt : diaries[index].publishedAt,
+    pinned: body.pinned !== undefined ? body.pinned : diaries[index].pinned,
     title: body.title ?? diaries[index].title,
     summary: body.summary ?? diaries[index].summary,
     tags: body.tags !== undefined ? body.tags : diaries[index].tags,
     images: body.images !== undefined ? body.images : diaries[index].images,
   };
   diaries[index] = updated;
-  diaries.sort(
-    (a, b) =>
+  diaries.sort((a, b) => {
+    if (a.pinned && !b.pinned) return -1;
+    if (!a.pinned && b.pinned) return 1;
+    return (
       new Date(b.publishedAt ?? b.date).getTime() -
       new Date(a.publishedAt ?? a.date).getTime()
-  );
+    );
+  });
   await saveDiaries(diaries);
   return NextResponse.json(updated);
 }

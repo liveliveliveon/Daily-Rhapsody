@@ -13,6 +13,7 @@ export default function NewDiaryPage() {
   const [summary, setSummary] = useState("");
   const [tagsStr, setTagsStr] = useState("");
   const [images, setImages] = useState<string[]>([]);
+  const [pinned, setPinned] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
@@ -30,7 +31,7 @@ export default function NewDiaryPage() {
       const res = await fetch("/api/diaries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, title: "", summary, tags, images }),
+        body: JSON.stringify({ date, title: "", summary, tags, images, pinned }),
       });
       if (!res.ok) {
         const data = await res.json();
@@ -106,6 +107,18 @@ export default function NewDiaryPage() {
           <div className="mt-1">
             <TagInput value={tagsStr} onChange={setTagsStr} />
           </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="pinned"
+            checked={pinned}
+            onChange={(e) => setPinned(e.target.checked)}
+            className="h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
+          />
+          <label htmlFor="pinned" className="text-sm text-zinc-700 dark:text-zinc-300">
+            发布时置顶（最多一篇，若已有置顶需先取消该篇）
+          </label>
         </div>
         {error && (
           <p className="text-sm text-red-600 dark:text-red-400">{error}</p>

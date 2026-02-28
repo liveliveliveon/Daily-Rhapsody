@@ -6,6 +6,8 @@ export type Diary = {
   date: string;
   /** 实际发布时间（ISO），从 WordPress 等拉取后可写入，用于显示精确到分钟 */
   publishedAt?: string;
+  /** 是否置顶，最多一篇 */
+  pinned?: boolean;
   title: string;
   summary: string;
   tags?: string[];

@@ -13,6 +13,7 @@ export default function EditDiaryPage() {
   const [summary, setSummary] = useState("");
   const [tagsStr, setTagsStr] = useState("");
   const [images, setImages] = useState<string[]>([]);
+  const [pinned, setPinned] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(true);
   const [error, setError] = useState("");
@@ -31,6 +32,7 @@ export default function EditDiaryPage() {
         setSummary(d.summary ?? "");
         setTagsStr((d.tags ?? []).join(", "));
         setImages(Array.isArray(d.images) ? d.images : []);
+        setPinned(!!d.pinned);
       } finally {
         setFetchLoading(false);
       }
@@ -51,7 +53,7 @@ export default function EditDiaryPage() {
       const res = await fetch(`/api/diaries/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, summary, tags, images }),
+        body: JSON.stringify({ date, summary, tags, images, pinned }),
       });
       if (!res.ok) {
         const data = await res.json();
@@ -131,6 +133,18 @@ export default function EditDiaryPage() {
           <div className="mt-1">
             <TagInput value={tagsStr} onChange={setTagsStr} />
           </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="pinned"
+            checked={pinned}
+            onChange={(e) => setPinned(e.target.checked)}
+            className="h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
+          />
+          <label htmlFor="pinned" className="text-sm text-zinc-700 dark:text-zinc-300">
+            置顶本文（最多一篇，若已有置顶需先取消该篇）
+          </label>
         </div>
         {error && (
           <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
