@@ -489,19 +489,22 @@ export default function EntriesPage() {
 
     const duration = Math.min(3000, 600 + 320 * Math.log(1 + startY / 300));
     const startT = performance.now();
-    function easeOutQuint(x: number) {
-      return 1 - (1 - x) ** 5;
-    }
+    const scrollToThrottleMs = 20;
+    let lastScrollToAt = startT;
+
     function tick(now: number) {
       const elapsed = now - startT;
       const t = Math.min(elapsed / duration, 1);
-      const progress = easeOutQuint(t);
-      const y = startY * (1 - progress);
-      window.scrollTo(0, y);
+      const y = Math.round(startY * (1 - t));
+      const shouldScroll = t >= 1 || now - lastScrollToAt >= scrollToThrottleMs;
+      if (shouldScroll) {
+        lastScrollToAt = now;
+        window.scrollTo({ top: y, left: 0, behavior: "auto" });
+      }
       if (t < 1) {
         requestAnimationFrame(tick);
       } else {
-        const nail = () => window.scrollTo(0, 0);
+        const nail = () => window.scrollTo({ top: 0, left: 0, behavior: "auto" });
         nail();
         [60, 150, 280, 400].forEach((ms) => setTimeout(nail, ms));
         setTimeout(() => {
@@ -827,14 +830,14 @@ export default function EntriesPage() {
             className={!hasMore && isRebounding ? "rebound-transition" : ""}
           >
           <div className="px-4 pt-5">
-          {/* 顶部功能区：日历热力图（左）+ 预留同级 */}
-          <div className="mb-5 flex flex-wrap items-start gap-6">
+          {/* 顶部功能区：日历热力图（左）+ 预留同级；contain 减轻回顶滚动时重绘 */}
+          <div className="mb-5 flex flex-wrap items-start gap-6 [contain:layout_paint]">
             <CalendarHeatmap datesWithPosts={datesWithPosts} />
           </div>
 
           {/* 标签词云 */}
           {tagCounts.length > 0 && (
-            <section className="mb-5 rounded-2xl border border-zinc-200 bg-white/60 px-4 py-5 shadow-sm transition-apple dark:border-zinc-800 dark:bg-zinc-900/40">
+            <section className="mb-5 rounded-2xl border border-zinc-200 bg-white/60 px-4 py-5 shadow-sm transition-apple dark:border-zinc-800 dark:bg-zinc-900/40 [contain:layout_paint]">
               <div className="flex flex-wrap items-center gap-2">
                 {tagCounts.map(({ name, value }) => (
                   <button
