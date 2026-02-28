@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import Pagination from "../components/Pagination";
 import ImageUpload from "./ImageUpload";
 
 type Diary = {
   id: number;
   date: string;
-  title: string;
+  publishedAt?: string;
   summary: string;
   tags?: string[];
   pinned?: boolean;
@@ -23,27 +24,169 @@ type Profile = {
   headerBg: string;
 };
 
+const PAGE_SIZE = 20;
+const MAX_SUMMARY_LINES = 5;
+
+/** 支持 ISO 或 YYYY-MM-DD，输出 2026/9/10 12:00PM */
+function formatDate12h(dateOrIso: string): string {
+  const d = /^\d{4}-\d{2}-\d{2}$/.test(dateOrIso)
+    ? new Date(dateOrIso + "T12:00:00")
+    : new Date(dateOrIso);
+  const y = d.getFullYear();
+  const m = d.getMonth() + 1;
+  const day = d.getDate();
+  const h = d.getHours() % 12 || 12;
+  const min = String(d.getMinutes()).padStart(2, "0");
+  const ampm = d.getHours() < 12 ? "AM" : "PM";
+  return `${y}/${m}/${day} ${h}:${min}${ampm}`;
+}
+
+function AdminSummary({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const needsExpand =
+    text.split(/\n/).length > MAX_SUMMARY_LINES || text.length > 280;
+  return (
+    <div>
+      <p
+        className={`whitespace-pre-line text-[0.82rem] leading-relaxed text-zinc-600 dark:text-zinc-400 ${
+          expanded ? "" : "line-clamp-6"
+        }`}
+      >
+        {text}
+      </p>
+      {needsExpand && (
+        <button
+          type="button"
+          onClick={() => setExpanded((e) => !e)}
+          className="mt-1 text-[0.75rem] text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+        >
+          {expanded ? "收起" : "展开"}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function AdminCard({
+  d,
+  onRemove,
+}: {
+  d: Diary;
+  onRemove: (id: number) => void;
+}) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const timeStr = formatDate12h(d.publishedAt ?? d.date + "T12:00:00");
+
+  return (
+    <article className="group relative flex flex-col gap-3 rounded-2xl px-3 py-4 transition-apple hover:bg-zinc-100/70 hover:shadow-md dark:hover:bg-zinc-900/80 dark:hover:shadow-black/10">
+      <div className="flex items-start gap-3">
+        <div className="min-h-10 flex min-w-0 flex-1 flex-col justify-center">
+          <p className="text-[0.75rem] text-zinc-500 dark:text-zinc-400">
+            {timeStr}
+          </p>
+        </div>
+        <div className="relative shrink-0">
+          <button
+            type="button"
+            onClick={() => setMenuOpen((o) => !o)}
+            className="rounded-full p-1.5 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700 dark:hover:bg-zinc-700 dark:hover:text-zinc-300"
+            aria-label="更多"
+          >
+            <svg
+              className="h-5 w-5"
+              fill="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="6" r="1.5" />
+              <circle cx="12" cy="12" r="1.5" />
+              <circle cx="12" cy="18" r="1.5" />
+            </svg>
+          </button>
+          {menuOpen && (
+            <>
+              <div
+                className="fixed inset-0 z-10"
+                aria-hidden="true"
+                onClick={() => setMenuOpen(false)}
+              />
+              <div className="absolute right-0 top-full z-20 mt-1 min-w-[6rem] rounded-lg border border-zinc-200 bg-white py-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
+                <Link
+                  href={`/admin/diaries/${d.id}/edit`}
+                  className="block w-full px-3 py-2 text-left text-[0.8rem] text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  编辑
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onRemove(d.id);
+                  }}
+                  className="w-full px-3 py-2 text-left text-[0.8rem] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+                >
+                  删除
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+      {d.pinned && (
+        <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[0.65rem] font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
+          置顶
+        </span>
+      )}
+      <AdminSummary text={d.summary || ""} />
+      {(d.tags ?? []).length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {(d.tags ?? []).map((tag) => (
+            <span
+              key={tag}
+              className="rounded bg-zinc-200/80 px-1.5 py-0.5 text-[0.65rem] text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400"
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+      )}
+    </article>
+  );
+}
+
 export default function AdminPage() {
   const [diaries, setDiaries] = useState<Diary[]>([]);
+  const [total, setTotal] = useState(0);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [profileSaving, setProfileSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [seedLoading, setSeedLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  async function load() {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/diaries");
-      const data = await res.json();
-      setDiaries(Array.isArray(data) ? data : []);
-    } finally {
-      setLoading(false);
-    }
-  }
+  const load = useCallback(
+    (pageNum: number = page, q: string = searchQuery) => {
+      setLoading(true);
+      const params = new URLSearchParams({
+        limit: String(PAGE_SIZE),
+        offset: String((pageNum - 1) * PAGE_SIZE),
+      });
+      if (q.trim()) params.set("q", q.trim());
+      fetch(`/api/diaries?${params}`)
+        .then((res) => res.json())
+        .then((data: { items?: Diary[]; total?: number }) => {
+          setDiaries(Array.isArray(data.items) ? data.items : []);
+          setTotal(typeof data.total === "number" ? data.total : 0);
+        })
+        .finally(() => setLoading(false));
+    },
+    [page, searchQuery]
+  );
 
   useEffect(() => {
-    load();
-  }, []);
+    load(page, searchQuery);
+  }, [page]);
 
   useEffect(() => {
     fetch("/api/profile")
@@ -52,11 +195,31 @@ export default function AdminPage() {
       .catch(() => setProfile(null));
   }, []);
 
+  const handleSearch = useCallback(() => {
+    setPage(1);
+    setLoading(true);
+    const params = new URLSearchParams({
+      limit: String(PAGE_SIZE),
+      offset: "0",
+    });
+    if (searchQuery.trim()) params.set("q", searchQuery.trim());
+    fetch(`/api/diaries?${params}`)
+      .then((res) => res.json())
+      .then((data: { items?: Diary[]; total?: number }) => {
+        setDiaries(Array.isArray(data.items) ? data.items : []);
+        setTotal(typeof data.total === "number" ? data.total : 0);
+      })
+      .finally(() => setLoading(false));
+  }, [searchQuery]);
+
   async function seed() {
     setSeedLoading(true);
     try {
       const res = await fetch("/api/seed", { method: "POST" });
-      if (res.ok) await load();
+      if (res.ok) {
+        setPage(1);
+        load(1, searchQuery);
+      }
     } finally {
       setSeedLoading(false);
     }
@@ -65,7 +228,7 @@ export default function AdminPage() {
   async function remove(id: number) {
     if (!confirm("确定删除这篇？")) return;
     const res = await fetch(`/api/diaries/${id}`, { method: "DELETE" });
-    if (res.ok) await load();
+    if (res.ok) load(page, searchQuery);
   }
 
   async function saveProfile(e: React.FormEvent) {
@@ -84,9 +247,7 @@ export default function AdminPage() {
     }
   }
 
-  if (loading) {
-    return <p className="text-zinc-500">加载中…</p>;
-  }
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <div>
@@ -179,7 +340,7 @@ export default function AdminPage() {
 
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
-          文章列表（共 {diaries.length} 篇）
+          文章列表（共 {total} 篇）
         </h1>
         <div className="flex gap-2">
           <button
@@ -199,68 +360,51 @@ export default function AdminPage() {
         </div>
       </div>
 
-      <ul className="space-y-4">
-        {diaries.map((d) => (
-          <li
-            key={d.id}
-            className="flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-white px-4 py-4 dark:border-zinc-800 dark:bg-zinc-900 sm:flex-row sm:items-start sm:justify-between sm:gap-4"
-          >
-            <div className="min-w-0 flex-1">
-              <div className="flex items-baseline gap-2">
-                <span className="shrink-0 text-[0.7rem] uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-500">
-                  {d.date}
-                </span>
-                {d.pinned && (
-                  <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[0.65rem] font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
-                    置顶
-                  </span>
-                )}
-                <h2 className="text-sm font-medium tracking-tight text-zinc-900 dark:text-zinc-50">
-                  {d.title || "（无标题）"}
-                </h2>
-              </div>
-              {(d.tags ?? []).length > 0 && (
-                <div className="mt-1.5 flex flex-wrap gap-1">
-                  {(d.tags ?? []).map((tag) => (
-                    <span
-                      key={tag}
-                      className="rounded bg-zinc-200/80 px-1.5 py-0.5 text-[0.65rem] text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              )}
-              {d.summary && (
-                <p className="mt-2 line-clamp-3 whitespace-pre-line text-[0.82rem] leading-relaxed text-zinc-600 dark:text-zinc-400">
-                  {d.summary}
-                </p>
-              )}
-            </div>
-            <div className="flex shrink-0 items-center gap-0.5 sm:pt-0.5">
-              <Link
-                href={`/admin/diaries/${d.id}/edit`}
-                className="rounded-full p-2 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
-                title="编辑"
-              >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                </svg>
-              </Link>
-              <button
-                type="button"
-                onClick={() => remove(d.id)}
-                className="rounded-full p-2 text-zinc-500 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-950/50 dark:hover:text-red-400"
-                title="删除"
-              >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </button>
-            </div>
-          </li>
-        ))}
-      </ul>
+      {/* 文章内容模糊搜索 */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <input
+          type="search"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+          placeholder="搜索正文、标签…"
+          className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500"
+        />
+        <button
+          type="button"
+          onClick={handleSearch}
+          className="rounded-lg bg-zinc-800 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-200 dark:text-zinc-900 dark:hover:bg-zinc-300"
+        >
+          搜索
+        </button>
+      </div>
+
+      {loading ? (
+        <p className="text-zinc-500">加载中…</p>
+      ) : (
+        <>
+          <ul className="entries-page-fade-in space-y-4">
+            {diaries.map((d) => (
+              <li key={d.id}>
+                <AdminCard d={d} onRemove={remove} />
+              </li>
+            ))}
+          </ul>
+          {diaries.length === 0 && (
+            <p className="py-8 text-center text-sm text-zinc-500">暂无文章</p>
+          )}
+
+          {/* 翻页：与之前浏览页一致组件 */}
+          {total > 0 && (
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              totalPosts={total}
+              onPageChange={setPage}
+            />
+          )}
+        </>
+      )}
     </div>
   );
 }

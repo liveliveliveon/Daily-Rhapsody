@@ -31,7 +31,7 @@ export default function NewDiaryPage() {
       const res = await fetch("/api/diaries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, title: "", summary, tags, images, pinned }),
+        body: JSON.stringify({ date, summary, tags, images, pinned }),
       });
       if (!res.ok) {
         const data = await res.json();

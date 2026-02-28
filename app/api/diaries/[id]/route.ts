@@ -32,7 +32,7 @@ export async function PUT(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { id } = await params;
-  let body: { date?: string; publishedAt?: string; title?: string; summary?: string; tags?: string[]; images?: string[]; pinned?: boolean };
+  let body: { date?: string; publishedAt?: string; summary?: string; tags?: string[]; images?: string[]; pinned?: boolean };
   try {
     body = await req.json();
   } catch {
@@ -57,7 +57,6 @@ export async function PUT(
     date: body.date ?? diaries[index].date,
     publishedAt: body.publishedAt !== undefined ? body.publishedAt : diaries[index].publishedAt,
     pinned: body.pinned !== undefined ? body.pinned : diaries[index].pinned,
-    title: body.title ?? diaries[index].title,
     summary: body.summary ?? diaries[index].summary,
     tags: body.tags !== undefined ? body.tags : diaries[index].tags,
     images: body.images !== undefined ? body.images : diaries[index].images,

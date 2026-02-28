@@ -58,12 +58,29 @@ export async function GET(req: Request) {
   );
   const offset = Math.max(0, Number(searchParams.get("offset")) || 0);
   const tag = searchParams.get("tag") ?? undefined;
+  const q = (searchParams.get("q") ?? "").trim().toLowerCase();
 
-  const filtered = tag
+  let filtered = tag
     ? diaries.filter((d) => (d.tags ?? []).includes(tag))
     : diaries;
+  if (q) {
+    filtered = filtered.filter((d) => {
+      const text = [d.summary ?? "", (d.tags ?? []).join(" ")].join(" ");
+      return text.toLowerCase().includes(q);
+    });
+  }
   const total = filtered.length;
-  const items = filtered.slice(offset, offset + limit);
+  let items = filtered.slice(offset, offset + limit);
+  try {
+    const wpTimes = await fetchWordPressPublishTimes();
+    items = items.map((d) => ({
+      ...d,
+      publishedAt: wpTimes.get(d.id) ?? d.publishedAt,
+    }));
+  } catch {
+    // use as-is
+  }
+
   const hasMore = offset + items.length < total;
 
   const body: {
@@ -87,7 +104,7 @@ export async function POST(req: Request) {
   if (!ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  let body: { date?: string; title?: string; summary?: string; tags?: string[]; images?: string[]; pinned?: boolean };
+  let body: { date?: string; summary?: string; tags?: string[]; images?: string[]; pinned?: boolean };
   try {
     body = await req.json();
   } catch {
@@ -108,7 +125,6 @@ export async function POST(req: Request) {
     id,
     date: body.date ?? new Date().toISOString().slice(0, 10),
     pinned: !!body.pinned,
-    title: body.title ?? "",
     summary: body.summary ?? "",
     tags: Array.isArray(body.tags) ? body.tags : [],
     images: Array.isArray(body.images) ? body.images : [],

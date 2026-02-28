@@ -8,7 +8,6 @@ type Diary = {
   id: number;
   date: string;
   publishedAt?: string;
-  title: string;
   summary: string;
   tags?: string[];
   images?: string[];
@@ -108,7 +107,7 @@ export default function TheMomentPage() {
                       const h = d.getHours() % 12 || 12;
                       const min = String(d.getMinutes()).padStart(2, "0");
                       const ampm = d.getHours() < 12 ? "AM" : "PM";
-                      return `${y}/${m}/${day}, ${h}:${min}${ampm}`;
+                      return `${y}/${m}/${day} ${h}:${min}${ampm}`;
                     })()}
                   </p>
                   <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-zinc-600 dark:text-zinc-400 line-clamp-3">

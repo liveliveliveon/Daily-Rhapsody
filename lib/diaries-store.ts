@@ -8,7 +8,6 @@ export type Diary = {
   publishedAt?: string;
   /** 是否置顶，最多一篇 */
   pinned?: boolean;
-  title: string;
   summary: string;
   tags?: string[];
   images?: string[];
