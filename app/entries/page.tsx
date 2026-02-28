@@ -466,6 +466,7 @@ export default function EntriesPage() {
   const returningToTopRef = useRef(false);
   const headerCollapsedRef = useRef(false);
   const returnToTopPhaseRef = useRef<0 | 1 | 2>(0);
+  const lastScrollYUpdateRef = useRef(0);
   const eggPullAccumRef = useRef(0);
   const eggReleaseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const touchLastYRef = useRef(0);
@@ -518,6 +519,7 @@ export default function EntriesPage() {
             setTimeout(() => {
               returningToTopRef.current = false;
               returnToTopPhaseRef.current = 0;
+              setScrollY(0);
               requestAnimationFrame(nail);
               requestAnimationFrame(nail);
             }, 450);
@@ -535,7 +537,12 @@ export default function EntriesPage() {
       if (y < 2 && returnToTopPhaseRef.current === 0) {
         returningToTopRef.current = false;
       }
-      setScrollY(y);
+      const inReturn = returnToTopPhaseRef.current !== 0;
+      const now = performance.now();
+      if (!inReturn || now - lastScrollYUpdateRef.current >= 80) {
+        lastScrollYUpdateRef.current = now;
+        setScrollY(y);
+      }
     }
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -849,9 +856,6 @@ export default function EntriesPage() {
           {/* 标签词云 */}
           {tagCounts.length > 0 && (
             <section className="mb-5 rounded-2xl border border-zinc-200 bg-white/60 px-4 py-5 shadow-sm transition-apple dark:border-zinc-800 dark:bg-zinc-900/40">
-              <p className="mb-3 text-[0.7rem] uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
-                标签
-              </p>
               <div className="flex flex-wrap items-center gap-2">
                 {tagCounts.map(({ name, value }) => (
                   <button
