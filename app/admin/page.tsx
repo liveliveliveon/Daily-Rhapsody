@@ -112,7 +112,7 @@ export default function AdminPage() {
                 type="text"
                 value={profile.signature}
                 onChange={(e) => setProfile((p) => p && { ...p, signature: e.target.value })}
-                placeholder="dailyrhapsody.data.blog"
+                placeholder="君子论迹不论心"
                 className="mt-1 w-full max-w-md rounded-lg border border-zinc-300 bg-transparent px-3 py-2 text-zinc-900 dark:border-zinc-700 dark:text-zinc-50"
               />
             </div>

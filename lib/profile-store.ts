@@ -13,7 +13,7 @@ export type Profile = {
 
 const DEFAULT_PROFILE: Profile = {
   name: "DailyRhapsody",
-  signature: "dailyrhapsody.data.blog",
+  signature: "君子论迹不论心",
   avatar: "/avatar.png",
   location: "杭州",
   industry: "计算机硬件行业",

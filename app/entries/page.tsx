@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -21,9 +21,7 @@ type Comment = {
   createdAt: string;
 };
 
-/** 流式加载：首次展示条数，触底每次追加条数 */
-const INITIAL_VISIBLE = 12;
-const LOAD_MORE_SIZE = 10;
+const PAGE_SIZE = 30;
 
 type Profile = {
   name: string;
@@ -107,7 +105,7 @@ function DefaultAvatar({
   );
 }
 
-const MAX_SUMMARY_LINES = 6;
+const MAX_SUMMARY_LINES = 5;
 
 /** 本月日历热力图：仅方块，始终当前月，有发布的日期高亮 */
 function CalendarHeatmap({ datesWithPosts }: { datesWithPosts: Set<string> }) {
@@ -149,7 +147,7 @@ function CalendarHeatmap({ datesWithPosts }: { datesWithPosts: Set<string> }) {
             key={day}
             className={`h-[18px] w-[18px] rounded-[4px] transition-colors ${
               datesWithPosts.has(toDateKey(day))
-                ? "bg-emerald-500 dark:bg-emerald-500/90"
+                ? "bg-emerald-300/70 dark:bg-emerald-400/50"
                 : "bg-zinc-200 dark:bg-zinc-600/80"
             }`}
             title={`${y}-${String(m + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}${datesWithPosts.has(toDateKey(day)) ? " 有发布" : ""}`}
@@ -162,7 +160,7 @@ function CalendarHeatmap({ datesWithPosts }: { datesWithPosts: Set<string> }) {
 
 function EntrySummary({ text }: { text: string }) {
   const [expanded, setExpanded] = useState(false);
-  const needsExpand = text.split(/\n/).length > MAX_SUMMARY_LINES || text.length > 320;
+  const needsExpand = text.split(/\n/).length > MAX_SUMMARY_LINES || text.length > 280;
   return (
     <div>
       <p
@@ -176,7 +174,7 @@ function EntrySummary({ text }: { text: string }) {
         <button
           type="button"
           onClick={() => setExpanded((e) => !e)}
-          className="mt-1 text-[0.75rem] text-zinc-500 underline hover:text-zinc-700 dark:hover:text-zinc-400"
+          className="mt-1 text-[0.75rem] text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
         >
           {expanded ? "收起" : "展开"}
         </button>
@@ -452,33 +450,109 @@ function EntryCard({
 }
 
 export default function EntriesPage() {
-  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
+  const [items, setItems] = useState<Diary[]>([]);
+  const [total, setTotal] = useState(0);
+  const [tagCounts, setTagCounts] = useState<{ name: string; value: number }[]>([]);
+  const [datesFromApi, setDatesFromApi] = useState<string[]>([]);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
-  const [allDiaries, setAllDiaries] = useState<Diary[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [entriesFlipped, setEntriesFlipped] = useState(false);
   const [scrollY, setScrollY] = useState(0);
-  const [showEasterEgg, setShowEasterEgg] = useState(false);
-  const [eggRetracting, setEggRetracting] = useState(false);
+  const [eggPullY, setEggPullY] = useState(0);
+  const [isRebounding, setIsRebounding] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
-  const eggHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const returningToTopRef = useRef(false);
+  const headerCollapsedRef = useRef(false);
+  const returnToTopPhaseRef = useRef<0 | 1 | 2>(0);
+  const eggPullAccumRef = useRef(0);
+  const eggReleaseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touchLastYRef = useRef(0);
+  const hasMoreRef = useRef(true);
+  const totalPostsRef = useRef(0);
+
+  const SCROLL_TARGET_CALENDAR = 90;
+  const datesWithPosts = useMemo(() => new Set(datesFromApi), [datesFromApi]);
+  const totalPosts = total;
+  const currentEntries = items;
+  const hasMore = items.length < total && total > 0;
+  hasMoreRef.current = hasMore;
+  totalPostsRef.current = totalPosts;
+  const maxTagCount = tagCounts[0]?.value ?? 1;
 
   useEffect(() => {
     function onScroll() {
-      setScrollY(typeof window !== "undefined" ? window.scrollY : 0);
+      const y = typeof window !== "undefined" ? window.scrollY : 0;
+      const phase = returnToTopPhaseRef.current;
+      if (phase === 1 && y <= SCROLL_TARGET_CALENDAR) {
+        returnToTopPhaseRef.current = 2;
+        returningToTopRef.current = true;
+        const startY = y;
+        const duration = 920;
+        const startT = performance.now();
+        function easeOutQuint(t: number) {
+          return 1 - (1 - t) ** 5;
+        }
+        function tick(now: number) {
+          const elapsed = now - startT;
+          const t = Math.min(elapsed / duration, 1);
+          const progress = easeOutQuint(t);
+          const currentY = startY * (1 - progress);
+          window.scrollTo(0, currentY);
+          if (t < 1) requestAnimationFrame(tick);
+          else {
+            const nail = () => window.scrollTo(0, 0);
+            nail();
+            [50, 120, 220, 350].forEach((ms) => setTimeout(nail, ms));
+            setTimeout(() => {
+              returningToTopRef.current = false;
+              returnToTopPhaseRef.current = 0;
+              requestAnimationFrame(nail);
+              requestAnimationFrame(() => nail());
+            }, 420);
+          }
+        }
+        requestAnimationFrame(tick);
+      }
+      if (y < 2 && returnToTopPhaseRef.current === 0) {
+        returningToTopRef.current = false;
+      }
+      setScrollY(y);
     }
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  const loadPage = useCallback(
+    (offset: number, append: boolean, tag: string | null) => {
+      const params = new URLSearchParams({
+        limit: String(PAGE_SIZE),
+        offset: String(offset),
+      });
+      if (tag) params.set("tag", tag);
+      return fetch(`/api/diaries?${params}`)
+        .then((res) => res.json())
+        .then((data: { items?: Diary[]; total?: number; hasMore?: boolean; tagCounts?: { name: string; value: number }[]; dates?: string[] }) => {
+          const list = Array.isArray(data.items) ? data.items : [];
+          if (append) {
+            setItems((prev) => [...prev, ...list]);
+          } else {
+            setItems(list);
+          }
+          if (typeof data.total === "number") setTotal(data.total);
+          if (Array.isArray(data.tagCounts)) setTagCounts(data.tagCounts);
+          if (Array.isArray(data.dates)) setDatesFromApi(data.dates);
+        });
+    },
+    []
+  );
+
   useEffect(() => {
-    fetch("/api/diaries")
-      .then((res) => res.json())
-      .then((data) => setAllDiaries(Array.isArray(data) ? data : []))
-      .finally(() => setLoading(false));
-  }, []);
+    setLoading(true);
+    loadPage(0, false, selectedTag).finally(() => setLoading(false));
+  }, [selectedTag, loadPage]);
 
   useEffect(() => {
     fetch("/api/profile")
@@ -487,73 +561,108 @@ export default function EntriesPage() {
       .catch(() => setProfile(null));
   }, []);
 
-  // 进入页面时触发翻转动画
   useEffect(() => {
     const t = setTimeout(() => setEntriesFlipped(true), 80);
     return () => clearTimeout(t);
   }, []);
-
-  const filteredDiaries = useMemo(() => {
-    if (!selectedTag) return allDiaries;
-    return allDiaries.filter((d) => (d.tags ?? []).includes(selectedTag));
-  }, [selectedTag, allDiaries]);
-
-  const tagCounts = useMemo(() => getTagCounts(allDiaries), [allDiaries]);
-  const maxTagCount = tagCounts[0]?.value ?? 1;
-  const datesWithPosts = useMemo(
-    () => new Set(allDiaries.map((d) => d.date)),
-    [allDiaries]
-  );
-
-  const totalPosts = filteredDiaries.length;
-  const currentEntries = useMemo(
-    () => filteredDiaries.slice(0, visibleCount),
-    [filteredDiaries, visibleCount]
-  );
-  const hasMore = visibleCount < totalPosts;
-
-  useEffect(() => {
-    setVisibleCount(INITIAL_VISIBLE);
-  }, [selectedTag]);
 
   useEffect(() => {
     const el = sentinelRef.current;
     if (!el || !hasMore || loading) return;
     const obs = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting)
-          setVisibleCount((n) => Math.min(totalPosts, n + LOAD_MORE_SIZE));
+        if (!entries[0]?.isIntersecting || loadingMore) return;
+        setLoadingMore(true);
+        const offset = items.length;
+        loadPage(offset, true, selectedTag).finally(() => setLoadingMore(false));
       },
-      { rootMargin: "120px", threshold: 0 }
+      { rootMargin: "200px", threshold: 0 }
     );
     obs.observe(el);
     return () => obs.disconnect();
-  }, [hasMore, loading, totalPosts]);
+  }, [hasMore, loading, loadingMore, items.length, selectedTag, loadPage]);
 
   useEffect(() => {
-    const onWheel = (e: WheelEvent) => {
-      const doc = document.documentElement;
-      const atBottom = window.scrollY + window.innerHeight >= doc.scrollHeight - 60;
-      if (!atBottom || e.deltaY <= 0) return;
-      if (eggHideTimerRef.current) {
-        clearTimeout(eggHideTimerRef.current);
-        eggHideTimerRef.current = null;
-      }
-      setEggRetracting(false);
-      setShowEasterEgg(true);
-      eggHideTimerRef.current = setTimeout(() => {
-        setEggRetracting(true);
-        eggHideTimerRef.current = setTimeout(() => {
-          setShowEasterEgg(false);
-          setEggRetracting(false);
-          eggHideTimerRef.current = null;
-        }, 280);
-      }, 1800);
+    const MAX_EGG_PULL = 120;
+    const WHEEL_RELEASE_MS = 100;
+    let rafId = 0;
+
+    const isAtBottom = () => {
+      const scrollTop = window.scrollY ?? document.documentElement.scrollTop;
+      const scrollHeight = Math.max(
+        document.body.scrollHeight,
+        document.documentElement.scrollHeight
+      );
+      return scrollTop + window.innerHeight >= scrollHeight - 80;
     };
-    window.addEventListener("wheel", onWheel, { passive: true });
+
+    const hideEgg = () => {
+      if (eggReleaseTimerRef.current) {
+        clearTimeout(eggReleaseTimerRef.current);
+        eggReleaseTimerRef.current = null;
+      }
+      eggPullAccumRef.current = 0;
+      setIsRebounding(true);
+      setEggPullY(0);
+      eggReleaseTimerRef.current = setTimeout(() => {
+        setIsRebounding(false);
+        eggReleaseTimerRef.current = null;
+      }, 400);
+    };
+
+    const flushPullY = () => {
+      rafId = 0;
+      setEggPullY(eggPullAccumRef.current);
+    };
+
+    const onWheel = (e: WheelEvent) => {
+      if (hasMoreRef.current) return;
+      if (totalPostsRef.current === 0) return;
+      if (!isAtBottom()) return;
+      if (e.deltaY === 0) return;
+      eggPullAccumRef.current = Math.min(
+        MAX_EGG_PULL,
+        eggPullAccumRef.current + Math.abs(e.deltaY)
+      );
+      if (!rafId) rafId = requestAnimationFrame(flushPullY);
+      if (eggReleaseTimerRef.current) clearTimeout(eggReleaseTimerRef.current);
+      eggReleaseTimerRef.current = setTimeout(hideEgg, WHEEL_RELEASE_MS);
+    };
+
+    const onTouchStart = () => {
+      touchLastYRef.current = 0;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (hasMoreRef.current) return;
+      if (totalPostsRef.current === 0) return;
+      if (!isAtBottom()) return;
+      const y = e.touches[0]?.clientY ?? 0;
+      if (touchLastYRef.current === 0) touchLastYRef.current = y;
+      const dy = y - touchLastYRef.current;
+      touchLastYRef.current = y;
+      if (dy > 0) {
+        eggPullAccumRef.current = Math.min(
+          MAX_EGG_PULL,
+          eggPullAccumRef.current + dy
+        );
+        if (!rafId) rafId = requestAnimationFrame(flushPullY);
+      }
+    };
+    const onTouchEnd = () => {
+      hideEgg();
+    };
+
+    document.addEventListener("wheel", onWheel, { passive: true, capture: true });
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: true });
+    window.addEventListener("touchend", onTouchEnd, { passive: true });
     return () => {
-      window.removeEventListener("wheel", onWheel);
-      if (eggHideTimerRef.current) clearTimeout(eggHideTimerRef.current);
+      document.removeEventListener("wheel", onWheel, true);
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onTouchEnd);
+      if (rafId) cancelAnimationFrame(rafId);
+      if (eggReleaseTimerRef.current) clearTimeout(eggReleaseTimerRef.current);
     };
   }, []);
 
@@ -573,11 +682,30 @@ export default function EntriesPage() {
             const HEADER_EXPANDED = 260;
             const HEADER_COLLAPSED = 56;
             const threshold = HEADER_EXPANDED - HEADER_COLLAPSED;
-            const height = Math.max(HEADER_COLLAPSED, HEADER_EXPANDED - scrollY);
-            const isCollapsed = scrollY >= threshold;
+            const COLLAPSE_AT = threshold + 10;
+            const EXPAND_AT = threshold - 10;
+            const nearTop = scrollY < 28;
+            const height =
+              returningToTopRef.current || nearTop
+                ? HEADER_EXPANDED
+                : Math.max(HEADER_COLLAPSED, HEADER_EXPANDED - scrollY);
+            let isCollapsed: boolean;
+            if (returningToTopRef.current) {
+              isCollapsed = false;
+            } else if (scrollY >= COLLAPSE_AT) {
+              isCollapsed = true;
+              headerCollapsedRef.current = true;
+            } else if (scrollY < EXPAND_AT) {
+              isCollapsed = false;
+              headerCollapsedRef.current = false;
+            } else {
+              isCollapsed = headerCollapsedRef.current;
+            }
             return (
               <header
-                className="sticky top-0 z-30 w-full overflow-hidden rounded-b-2xl bg-gradient-to-b from-zinc-900 via-zinc-800 to-black transition-[height] duration-150 ease-out"
+                className={`sticky top-0 z-30 w-full overflow-hidden rounded-b-2xl bg-gradient-to-b from-zinc-900 via-zinc-800 to-black transition-[height] ease-out ${
+                  returningToTopRef.current ? "duration-[420ms]" : "duration-250"
+                }`}
                 style={{
                   height: `${height}px`,
                 }}
@@ -589,75 +717,112 @@ export default function EntriesPage() {
                   }}
                 />
                 <div className="absolute inset-0 bg-black/50" />
-                <div
-                  className={`relative flex h-full w-full px-5 transition-[padding] duration-150 ${
-                    isCollapsed
-                      ? "flex-row items-center justify-center gap-3"
-                      : "flex-row items-center justify-center gap-4"
-                  }`}
-                >
-                  <div className="min-w-0 flex-1">
+                {isCollapsed && (
+                  <button
+                    type="button"
+                    className="absolute inset-0 z-10 cursor-pointer"
+                    onClick={() => {
+                      returnToTopPhaseRef.current = 1;
+                      window.scrollTo({ top: SCROLL_TARGET_CALENDAR, behavior: "smooth" });
+                    }}
+                    aria-label="回到顶部并展开"
+                  />
+                )}
+                <div className="relative flex h-full w-full flex-col justify-center px-5">
+                  {/* 收缩时：头像+名称从下边缘往上渐显，并在栏内上下居中 */}
+                  <div
+                    className={`absolute inset-0 flex items-center justify-center px-5 ${
+                      isCollapsed ? "pointer-events-auto" : "pointer-events-none"
+                    }`}
+                  >
+                    <div
+                      className={`flex transition-[transform,opacity] duration-250 ease-out ${
+                        isCollapsed ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"
+                      }`}
+                    >
+                      <Link
+                        href="/"
+                        className="flex items-center gap-2"
+                      >
+                        <div className="relative h-7 w-7 shrink-0 overflow-hidden rounded-full border-2 border-white/80 ring-2 ring-white/20">
+                          <Image
+                            src={profile?.avatar || "/avatar.png"}
+                            alt=""
+                            width={28}
+                            height={28}
+                            className="h-full w-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = "none";
+                            }}
+                          />
+                        </div>
+                        <p className="whitespace-nowrap text-base font-bold text-white">
+                          {profile?.name ?? "DailyRhapsody"}
+                        </p>
+                      </Link>
+                    </div>
+                  </div>
+                  {/* 展开时：整块内容；收起时头像+名称向下渐隐 */}
+                  <div
+                    className={`min-w-0 flex-1 transition-[transform,opacity] duration-250 ease-out ${
+                      isCollapsed
+                        ? "translate-y-1 opacity-0 pointer-events-none"
+                        : "flex flex-col justify-center translate-y-0 opacity-100"
+                    }`}
+                  >
                     <Link
                       href="/"
-                      className={
-                        isCollapsed
-                          ? "flex items-center gap-3"
-                          : "flex items-center gap-4"
-                      }
+                      className="flex items-center gap-4"
                     >
-                      <div
-                        className={`relative shrink-0 overflow-hidden rounded-full border-2 border-white/80 ring-2 ring-white/20 ${
-                          isCollapsed ? "h-9 w-9" : "h-16 w-16"
-                        }`}
-                      >
+                      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full border-2 border-white/80 ring-2 ring-white/20">
                         <Image
                           src={profile?.avatar || "/avatar.png"}
                           alt=""
-                          width={isCollapsed ? 36 : 64}
-                          height={isCollapsed ? 36 : 64}
+                          width={64}
+                          height={64}
                           className="h-full w-full object-cover"
                           onError={(e) => {
                             (e.target as HTMLImageElement).style.display = "none";
                           }}
                         />
                       </div>
-                      <p
-                        className={`font-bold text-white ${
-                          isCollapsed ? "text-sm" : "text-lg"
-                        }`}
-                      >
+                      <p className="text-lg font-bold text-white whitespace-nowrap">
                         {profile?.name ?? "DailyRhapsody"}
                       </p>
                     </Link>
-                    {!isCollapsed && (
-                      <>
-                        <p className="mt-3 text-sm text-white/80">
-                          {profile?.signature ?? "dailyrhapsody.data.blog"}
-                        </p>
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          {[
-                            profile?.location ?? "杭州",
-                            profile?.industry ?? "计算机硬件行业",
-                            profile?.zodiac ?? "天秤座",
-                          ]
-                            .filter(Boolean)
-                            .map((tag) => (
-                              <span
-                                key={tag}
-                                className="rounded-lg bg-white/20 px-2.5 py-1 text-xs text-white backdrop-blur-sm"
-                              >
-                                {tag}
-                              </span>
-                            ))}
-                        </div>
-                      </>
-                    )}
+                    <p className="mt-3 text-xs text-white/80">
+                      {profile?.signature ?? "君子论迹不论心"}
+                    </p>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {[
+                        profile?.location ?? "杭州",
+                        profile?.industry ?? "计算机硬件行业",
+                        profile?.zodiac ?? "天秤座",
+                      ]
+                        .filter(Boolean)
+                        .map((tag) => (
+                          <span
+                            key={tag}
+                            className="rounded-lg bg-white/20 px-2 py-0.5 text-[0.7rem] text-white backdrop-blur-sm"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                    </div>
                   </div>
                 </div>
               </header>
             );
           })()}
 
+          <div
+            style={{
+              transform: !hasMore && (eggPullY > 0 || isRebounding) ? `translate3d(0, -${eggPullY}px, 0)` : undefined,
+              willChange: !hasMore && eggPullY > 0 && !isRebounding ? "transform" : undefined,
+              paddingBottom: !hasMore && (eggPullY > 0 || isRebounding) ? eggPullY + 88 : 0,
+            }}
+            className={!hasMore && isRebounding ? "rebound-transition" : ""}
+          >
           <div className="px-4 pt-5">
           {/* 顶部功能区：日历热力图（左）+ 预留同级 */}
           <div className="mb-5 flex flex-wrap items-start gap-6">
@@ -725,22 +890,15 @@ export default function EntriesPage() {
             {hasMore && !loading && <div ref={sentinelRef} className="h-4" aria-hidden />}
           </section>
 
-          <footer className="mt-6 border-t border-zinc-200 pt-5 text-[0.7rem] text-zinc-500 dark:border-zinc-800 dark:text-zinc-500">
-            <span>© {new Date().getFullYear()} DailyRhapsody</span>
-          </footer>
-
-          {/* 到底部后再向下滚动一次：显示彩蛋，约 1.8s 后自动缩回 */}
-          {showEasterEgg && (
-            <div
-              className={`easter-egg-toast fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full bg-zinc-800 px-4 py-2 text-sm text-white shadow-lg transition-all duration-300 ease-out dark:bg-zinc-200 dark:text-zinc-900 ${
-                eggRetracting ? "easter-egg-retract" : ""
-              }`}
-              role="status"
-              aria-live="polite"
-            >
-              被你发现了 ✨
+          {/* 彩蛋：仅当流式加载全部展示完毕（滑完所有博客）后，出现在最底部；仅文字，与正文平滑过渡 */}
+          {totalPosts > 0 && !hasMore && (eggPullY > 0 || isRebounding) && (
+            <div className="pt-8 pb-10 text-center" role="status" aria-live="polite">
+              <span className="text-sm text-zinc-500 dark:text-zinc-400">
+                被你发现了 ✨
+              </span>
             </div>
           )}
+          </div>
           </div>
         </main>
       </div>

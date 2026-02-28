@@ -4,15 +4,38 @@ import { getDiaries, saveDiaries, nextId, type Diary } from "@/lib/diaries-store
 import { allDiaries } from "@/app/diaries.data";
 import { fetchWordPressPublishTimes } from "@/lib/wordpress-feed";
 
-export async function GET() {
-  const diaries = await getDiaries(allDiaries);
-  try {
-    const wpTimes = await fetchWordPressPublishTimes();
-    const enriched = diaries.map((d) => ({
-      ...d,
-      publishedAt: wpTimes.get(d.id) ?? d.publishedAt,
-    }));
-    enriched.sort((a, b) => {
+const DEFAULT_PAGE_SIZE = 30;
+const MAX_PAGE_SIZE = 100;
+
+function getTagCounts(diaries: Diary[]): { name: string; value: number }[] {
+  const count = new Map<string, number>();
+  for (const d of diaries) {
+    for (const t of d.tags ?? []) {
+      count.set(t, (count.get(t) ?? 0) + 1);
+    }
+  }
+  return Array.from(count.entries())
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value);
+}
+
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const limitParam = searchParams.get("limit");
+
+  let diaries = await getDiaries(allDiaries);
+
+  if (limitParam == null || limitParam === "") {
+    try {
+      const wpTimes = await fetchWordPressPublishTimes();
+      diaries = diaries.map((d) => ({
+        ...d,
+        publishedAt: wpTimes.get(d.id) ?? d.publishedAt,
+      }));
+    } catch {
+      // use as-is
+    }
+    diaries.sort((a, b) => {
       if (a.pinned && !b.pinned) return -1;
       if (!a.pinned && b.pinned) return 1;
       return (
@@ -20,10 +43,43 @@ export async function GET() {
         new Date(a.publishedAt ?? a.date).getTime()
       );
     });
-    return NextResponse.json(enriched);
-  } catch {
     return NextResponse.json(diaries);
   }
+
+  diaries.sort((a, b) => {
+    if (a.pinned && !b.pinned) return -1;
+    if (!a.pinned && b.pinned) return 1;
+    return new Date(b.date).getTime() - new Date(a.date).getTime();
+  });
+
+  const limit = Math.min(
+    Math.max(1, Number(limitParam) || DEFAULT_PAGE_SIZE),
+    MAX_PAGE_SIZE
+  );
+  const offset = Math.max(0, Number(searchParams.get("offset")) || 0);
+  const tag = searchParams.get("tag") ?? undefined;
+
+  const filtered = tag
+    ? diaries.filter((d) => (d.tags ?? []).includes(tag))
+    : diaries;
+  const total = filtered.length;
+  const items = filtered.slice(offset, offset + limit);
+  const hasMore = offset + items.length < total;
+
+  const body: {
+    items: Diary[];
+    total: number;
+    hasMore: boolean;
+    tagCounts?: { name: string; value: number }[];
+    dates?: string[];
+  } = { items, total, hasMore };
+
+  if (offset === 0) {
+    body.tagCounts = getTagCounts(diaries);
+    body.dates = [...new Set(diaries.map((d) => d.date))];
+  }
+
+  return NextResponse.json(body);
 }
 
 export async function POST(req: Request) {
