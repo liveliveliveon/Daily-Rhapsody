@@ -449,12 +449,16 @@ export default function EntriesPage() {
   const [eggPullY, setEggPullY] = useState(0);
   const [isRebounding, setIsRebounding] = useState(false);
   const [isReturnToTopAnimating, setIsReturnToTopAnimating] = useState(false);
+  const [returnToTopProgress, setReturnToTopProgress] = useState<number | null>(null);
+  const [headerExpandProgress, setHeaderExpandProgress] = useState<number | null>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const contentWrapperRef = useRef<HTMLDivElement>(null);
   const returningToTopRef = useRef(false);
   const headerCollapsedRef = useRef(false);
   const returnToTopPhaseRef = useRef<0 | 1 | 2>(0);
   const returnToTopRafRef = useRef<number>(0);
+  const returnToTopProgressRef = useRef<number>(0);
+  const headerExpandProgressRef = useRef<number>(0);
   const eggPullAccumRef = useRef(0);
   const eggReleaseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const touchLastYRef = useRef(0);
@@ -475,9 +479,10 @@ export default function EntriesPage() {
     if (startY <= 0) return;
 
     returnToTopPhaseRef.current = 1;
-    returningToTopRef.current = true;
+    returnToTopProgressRef.current = 0;
     setScrollY(startY);
     setIsReturnToTopAnimating(true);
+    setReturnToTopProgress(0);
     document.body.style.overflow = "hidden";
 
     const duration = Math.min(3000, 600 + 320 * Math.log(1 + startY / 300));
@@ -495,6 +500,8 @@ export default function EntriesPage() {
         el.style.willChange = "transform";
         el.style.transform = `translateY(-${offset}px)`;
       }
+      returnToTopProgressRef.current = t;
+      setReturnToTopProgress(t);
       if (t < 1) {
         returnToTopRafRef.current = requestAnimationFrame(tick);
       } else {
@@ -502,15 +509,36 @@ export default function EntriesPage() {
         el.style.transform = "";
         document.body.style.overflow = "";
         setIsReturnToTopAnimating(false);
+        returnToTopProgressRef.current = 0;
+        setReturnToTopProgress(null);
         setScrollY(0);
-        requestAnimationFrame(() => {
-          window.scrollTo(0, 0);
-          returnToTopPhaseRef.current = 0;
-          returningToTopRef.current = false;
-        });
+        window.scrollTo(0, 0);
+        // 到顶后用与回顶相同的 easeOutCubic 曲线展开 header，时长略短以延续「到达」感
+        const expandDuration = Math.min(420, 200 + duration * 0.2);
+        const expandStartT = performance.now();
+        headerExpandProgressRef.current = 0;
+        setHeaderExpandProgress(0);
+        function expandTick(now: number) {
+          const elapsed = now - expandStartT;
+          const u = Math.min(elapsed / expandDuration, 1);
+          const eased = easeOutCubic(u);
+          headerExpandProgressRef.current = eased;
+          setHeaderExpandProgress(eased);
+          if (u < 1) {
+            returnToTopRafRef.current = requestAnimationFrame(expandTick);
+          } else {
+            setHeaderExpandProgress(null);
+            headerExpandProgressRef.current = 0;
+            returnToTopPhaseRef.current = 0;
+            returningToTopRef.current = false;
+          }
+        }
+        returnToTopRafRef.current = requestAnimationFrame(expandTick);
       }
     }
-    returnToTopRafRef.current = requestAnimationFrame(tick);
+    requestAnimationFrame(() => {
+      returnToTopRafRef.current = requestAnimationFrame(tick);
+    });
   }, []);
 
   useEffect(() => {
@@ -694,13 +722,26 @@ export default function EntriesPage() {
             const COLLAPSE_AT = threshold + 10;
             const EXPAND_AT = threshold - 10;
             const nearTop = scrollY < 28;
+            const isReturning = isReturnToTopAnimating || returnToTopProgress !== null;
+            const isHeaderExpanding = headerExpandProgress !== null;
+            const expandProgress = isHeaderExpanding
+              ? (headerExpandProgressRef.current ?? headerExpandProgress ?? 0)
+              : 0;
+            const progress = isReturning ? (returnToTopProgressRef.current ?? returnToTopProgress ?? 0) : 0;
+            // 回顶过程中 header 保持收缩；到顶后按与回顶相同的 easeOutCubic 曲线展开
             const height =
-              returningToTopRef.current || nearTop
-                ? HEADER_EXPANDED
-                : Math.max(HEADER_COLLAPSED, HEADER_EXPANDED - scrollY);
+              isHeaderExpanding
+                ? HEADER_COLLAPSED + (HEADER_EXPANDED - HEADER_COLLAPSED) * expandProgress
+                : isReturning
+                  ? HEADER_COLLAPSED
+                  : returningToTopRef.current || nearTop
+                    ? HEADER_EXPANDED
+                    : Math.max(HEADER_COLLAPSED, HEADER_EXPANDED - scrollY);
             let isCollapsed: boolean;
-            if (returningToTopRef.current) {
-              isCollapsed = false;
+            if (isHeaderExpanding) {
+              isCollapsed = expandProgress < 1;
+            } else if (isReturning || returningToTopRef.current) {
+              isCollapsed = isReturning ? true : false;
             } else if (scrollY >= COLLAPSE_AT) {
               isCollapsed = true;
               headerCollapsedRef.current = true;
@@ -713,7 +754,7 @@ export default function EntriesPage() {
             return (
               <header
                 className={`sticky top-0 z-30 w-full overflow-hidden rounded-b-2xl bg-gradient-to-b from-zinc-900 via-zinc-800 to-black transition-[height] ease-out ${
-                  returningToTopRef.current ? "duration-[420ms]" : "duration-250"
+                  isReturning || isHeaderExpanding ? "duration-0" : returningToTopRef.current ? "duration-[420ms]" : "duration-250"
                 }`}
                 style={{
                   height: `${height}px`,
@@ -726,7 +767,7 @@ export default function EntriesPage() {
                   }}
                 />
                 <div className="absolute inset-0 bg-black/50" />
-                {isCollapsed && (
+                {isCollapsed && !isReturning && !isHeaderExpanding && (
                   <button
                     type="button"
                     className="absolute inset-0 z-10 cursor-pointer"
