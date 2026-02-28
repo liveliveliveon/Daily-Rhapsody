@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { formatDate12h } from "@/lib/format";
 import Pagination from "../components/Pagination";
 import ImageUpload from "./ImageUpload";
 
@@ -26,20 +27,6 @@ type Profile = {
 
 const PAGE_SIZE = 20;
 const MAX_SUMMARY_LINES = 5;
-
-/** 支持 ISO 或 YYYY-MM-DD，输出 2026/9/10 12:00PM */
-function formatDate12h(dateOrIso: string): string {
-  const d = /^\d{4}-\d{2}-\d{2}$/.test(dateOrIso)
-    ? new Date(dateOrIso + "T12:00:00")
-    : new Date(dateOrIso);
-  const y = d.getFullYear();
-  const m = d.getMonth() + 1;
-  const day = d.getDate();
-  const h = d.getHours() % 12 || 12;
-  const min = String(d.getMinutes()).padStart(2, "0");
-  const ampm = d.getHours() < 12 ? "AM" : "PM";
-  return `${y}/${m}/${day} ${h}:${min}${ampm}`;
-}
 
 function AdminSummary({ text }: { text: string }) {
   const [expanded, setExpanded] = useState(false);
@@ -174,10 +161,17 @@ export default function AdminPage() {
       });
       if (q.trim()) params.set("q", q.trim());
       fetch(`/api/diaries?${params}`)
-        .then((res) => res.json())
+        .then((res) => {
+          if (!res.ok) throw new Error(String(res.status));
+          return res.json();
+        })
         .then((data: { items?: Diary[]; total?: number }) => {
           setDiaries(Array.isArray(data.items) ? data.items : []);
           setTotal(typeof data.total === "number" ? data.total : 0);
+        })
+        .catch(() => {
+          setDiaries([]);
+          setTotal(0);
         })
         .finally(() => setLoading(false));
     },
@@ -190,8 +184,8 @@ export default function AdminPage() {
 
   useEffect(() => {
     fetch("/api/profile")
-      .then((res) => res.json())
-      .then((data) => setProfile(data))
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => setProfile(data ?? null))
       .catch(() => setProfile(null));
   }, []);
 
@@ -204,10 +198,17 @@ export default function AdminPage() {
     });
     if (searchQuery.trim()) params.set("q", searchQuery.trim());
     fetch(`/api/diaries?${params}`)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error(String(res.status));
+        return res.json();
+      })
       .then((data: { items?: Diary[]; total?: number }) => {
         setDiaries(Array.isArray(data.items) ? data.items : []);
         setTotal(typeof data.total === "number" ? data.total : 0);
+      })
+      .catch(() => {
+        setDiaries([]);
+        setTotal(0);
       })
       .finally(() => setLoading(false));
   }, [searchQuery]);

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { formatDate12h } from "@/lib/format";
 
 type Diary = {
   id: number;
@@ -19,11 +20,12 @@ export default function TheMomentPage() {
 
   useEffect(() => {
     fetch("/api/diaries")
-      .then((res) => res.json())
+      .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
         const list = Array.isArray(data) ? data : [];
         setDiaries(list.filter((d: Diary) => (d.images ?? []).length > 0));
       })
+      .catch(() => setDiaries([]))
       .finally(() => setLoading(false));
   }, []);
 
@@ -65,7 +67,7 @@ export default function TheMomentPage() {
                 <div className="flex flex-col">
                   <div className="relative aspect-[4/3] w-full bg-zinc-100 dark:bg-zinc-800">
                     <Image
-                      src={item.images![0]}
+                      src={(item.images ?? [])[0]}
                       alt=""
                       fill
                       className="object-cover"
@@ -73,9 +75,9 @@ export default function TheMomentPage() {
                       priority={false}
                     />
                   </div>
-                  {item.images!.length > 1 && (
+                  {(item.images ?? []).length > 1 && (
                     <div className="flex gap-1 overflow-x-auto p-2">
-                      {item.images!.slice(1, 6).map((src) => (
+                      {(item.images ?? []).slice(1, 6).map((src) => (
                         <div
                           key={src}
                           className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg bg-zinc-200 dark:bg-zinc-800"
@@ -97,18 +99,7 @@ export default function TheMomentPage() {
                     DailyRhapsody
                   </p>
                   <p className="text-[0.75rem] text-zinc-500 dark:text-zinc-400">
-                    {(() => {
-                      const d = new Date(
-                        item.publishedAt ?? item.date + "T12:00:00"
-                      );
-                      const y = d.getFullYear();
-                      const m = d.getMonth() + 1;
-                      const day = d.getDate();
-                      const h = d.getHours() % 12 || 12;
-                      const min = String(d.getMinutes()).padStart(2, "0");
-                      const ampm = d.getHours() < 12 ? "AM" : "PM";
-                      return `${y}/${m}/${day} ${h}:${min}${ampm}`;
-                    })()}
+                    {formatDate12h(item.publishedAt ?? item.date + "T12:00:00")}
                   </p>
                   <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-zinc-600 dark:text-zinc-400 line-clamp-3">
                     {item.summary}

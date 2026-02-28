@@ -1,6 +1,6 @@
-// 简单一次性导出脚本：从 WordPress 拉取所有文章，生成 app/diaries.data.ts
-// 运行方式：在项目根目录执行
-//   node scripts/export-wordpress.mjs
+// 一次性导出脚本：从 WordPress 拉取文章生成 app/diaries.data.ts（仅需在迁移时运行）
+// 应用运行时不再请求 WordPress，数据全部来自本地/服务器存储。
+// 运行方式：在项目根目录执行  node scripts/export-wordpress.mjs
 
 import fs from "node:fs";
 import path from "node:path";

@@ -3,6 +3,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { formatDate12h } from "@/lib/format";
 
 type Diary = {
   id: number;
@@ -31,20 +32,6 @@ type Profile = {
   zodiac: string;
   headerBg: string;
 };
-
-/** 支持 ISO 或 YYYY-MM-DD，输出 2026/9/10 12:00PM */
-function formatDate12h(dateOrIso: string): string {
-  const d = /^\d{4}-\d{2}-\d{2}$/.test(dateOrIso)
-    ? new Date(dateOrIso + "T12:00:00")
-    : new Date(dateOrIso);
-  const y = d.getFullYear();
-  const m = d.getMonth() + 1;
-  const day = d.getDate();
-  const h = d.getHours() % 12 || 12;
-  const min = String(d.getMinutes()).padStart(2, "0");
-  const ampm = d.getHours() < 12 ? "AM" : "PM";
-  return `${y}/${m}/${day} ${h}:${min}${ampm}`;
-}
 
 function getTagCounts(diaries: { tags?: string[] }[]) {
   const count = new Map<string, number>();
@@ -408,7 +395,7 @@ function EntryCard({
       </div>
       {(item.images ?? []).length > 0 && (
         <div className="flex gap-1 overflow-hidden rounded-xl">
-          {item.images!.slice(0, 3).map((src) => (
+          {(item.images ?? []).slice(0, 3).map((src) => (
             <div
               key={src}
               className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-zinc-200 dark:bg-zinc-800 sm:h-20 sm:w-20"
@@ -489,18 +476,17 @@ export default function EntriesPage() {
 
     const duration = Math.min(3000, 600 + 320 * Math.log(1 + startY / 300));
     const startT = performance.now();
-    const scrollToThrottleMs = 20;
-    let lastScrollToAt = startT;
+    /** easeOutCubic：前快后慢，末尾自然减速，避免“最后突然加快” */
+    function easeOutCubic(x: number) {
+      return 1 - (1 - x) ** 3;
+    }
 
     function tick(now: number) {
       const elapsed = now - startT;
       const t = Math.min(elapsed / duration, 1);
-      const y = Math.round(startY * (1 - t));
-      const shouldScroll = t >= 1 || now - lastScrollToAt >= scrollToThrottleMs;
-      if (shouldScroll) {
-        lastScrollToAt = now;
-        window.scrollTo({ top: y, left: 0, behavior: "auto" });
-      }
+      const progress = easeOutCubic(t);
+      const y = Math.round(startY * (1 - progress));
+      window.scrollTo({ top: y, left: 0, behavior: "auto" });
       if (t < 1) {
         requestAnimationFrame(tick);
       } else {
@@ -539,14 +525,14 @@ export default function EntriesPage() {
       });
       if (tag) params.set("tag", tag);
       return fetch(`/api/diaries?${params}`)
-        .then((res) => res.json())
-        .then((data: { items?: Diary[]; total?: number; hasMore?: boolean; tagCounts?: { name: string; value: number }[]; dates?: string[] }) => {
+        .then((res) => {
+          if (!res.ok) throw new Error(String(res.status));
+          return res.json();
+        })
+        .then((data: { items?: Diary[]; total?: number; tagCounts?: { name: string; value: number }[]; dates?: string[] }) => {
           const list = Array.isArray(data.items) ? data.items : [];
-          if (append) {
-            setItems((prev) => [...prev, ...list]);
-          } else {
-            setItems(list);
-          }
+          if (append) setItems((prev) => [...prev, ...list]);
+          else setItems(list);
           if (typeof data.total === "number") setTotal(data.total);
           if (Array.isArray(data.tagCounts)) setTagCounts(data.tagCounts);
           if (Array.isArray(data.dates)) setDatesFromApi(data.dates);
@@ -562,8 +548,8 @@ export default function EntriesPage() {
 
   useEffect(() => {
     fetch("/api/profile")
-      .then((res) => res.json())
-      .then((data) => setProfile(data))
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => setProfile(data ?? null))
       .catch(() => setProfile(null));
   }, []);
 
@@ -891,6 +877,31 @@ export default function EntriesPage() {
                 />
               ))}
             {hasMore && !loading && <div ref={sentinelRef} className="h-4" aria-hidden />}
+            {loadingMore && (
+              <div className="flex justify-center py-6" role="status" aria-label="加载中">
+                <svg
+                  className="h-7 w-7 animate-spin text-zinc-400 dark:text-zinc-500"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  aria-hidden
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  />
+                </svg>
+              </div>
+            )}
           </section>
 
           {/* 彩蛋：仅当流式加载全部展示完毕（滑完所有博客）后，出现在最底部；仅文字，与正文平滑过渡 */}

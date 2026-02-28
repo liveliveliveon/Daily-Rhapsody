@@ -4,7 +4,7 @@ import { join } from "node:path";
 export type Diary = {
   id: number;
   date: string;
-  /** 实际发布时间（ISO），从 WordPress 等拉取后可写入，用于显示精确到分钟 */
+  /** 可选，精确发布时间（ISO）；若导出/编辑时写入则展示到分钟，否则用 date 中午 */
   publishedAt?: string;
   /** 是否置顶，最多一篇 */
   pinned?: boolean;

@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { isAdmin } from "@/lib/auth";
 import { getDiaries, saveDiaries, nextId, type Diary } from "@/lib/diaries-store";
 import { allDiaries } from "@/app/diaries.data";
-import { fetchWordPressPublishTimes } from "@/lib/wordpress-feed";
 
 const DEFAULT_PAGE_SIZE = 30;
 const MAX_PAGE_SIZE = 100;
@@ -26,15 +25,6 @@ export async function GET(req: Request) {
   let diaries = await getDiaries(allDiaries);
 
   if (limitParam == null || limitParam === "") {
-    try {
-      const wpTimes = await fetchWordPressPublishTimes();
-      diaries = diaries.map((d) => ({
-        ...d,
-        publishedAt: wpTimes.get(d.id) ?? d.publishedAt,
-      }));
-    } catch {
-      // use as-is
-    }
     diaries.sort((a, b) => {
       if (a.pinned && !b.pinned) return -1;
       if (!a.pinned && b.pinned) return 1;
@@ -49,7 +39,10 @@ export async function GET(req: Request) {
   diaries.sort((a, b) => {
     if (a.pinned && !b.pinned) return -1;
     if (!a.pinned && b.pinned) return 1;
-    return new Date(b.date).getTime() - new Date(a.date).getTime();
+    return (
+      new Date(b.publishedAt ?? b.date).getTime() -
+      new Date(a.publishedAt ?? a.date).getTime()
+    );
   });
 
   const limit = Math.min(
@@ -70,16 +63,7 @@ export async function GET(req: Request) {
     });
   }
   const total = filtered.length;
-  let items = filtered.slice(offset, offset + limit);
-  try {
-    const wpTimes = await fetchWordPressPublishTimes();
-    items = items.map((d) => ({
-      ...d,
-      publishedAt: wpTimes.get(d.id) ?? d.publishedAt,
-    }));
-  } catch {
-    // use as-is
-  }
+  const items = filtered.slice(offset, offset + limit);
 
   const hasMore = offset + items.length < total;
 

@@ -1,0 +1,39 @@
+---
+description: 每 50 次 git push 执行一次全量代码审计
+alwaysApply: false
+---
+
+# 每 50 次 push 全量审计
+
+当用户或流程提示「每 50 个 push 做一次审计」或「按周期做代码审计」时，执行以下全量检查并给出修复建议或直接修复：
+
+## 1. Bugs 与风险
+
+- **API 调用**：所有 `fetch` 后必须检查 `res.ok`，再 `res.json()`；错误时要有用户可感知的提示或 fallback。
+- **竞态与依赖**：检查 `useEffect`/`useCallback` 依赖是否完整、是否导致重复请求或重复订阅。
+- **空值**：避免未校验的 `undefined`/`null` 访问；慎用非空断言 `!`，优先用 `?? []`/`?? ''` 等安全回退。
+- **日期**：`formatDate12h` 等对异常日期做防护（Invalid Date）。
+
+## 2. 冗余字段与逻辑
+
+- 删除未使用的 state、ref、import、类型字段。
+- 合并重复类型定义（如多处 `Diary`/`Profile`）为单一来源（如 `lib/diaries-store`、`lib/profile-store`）。
+- 合并重复工具函数（如 `formatDate12h`、标签解析）到 `lib/` 或 `utils/`。
+- 合并逻辑几乎相同的组件（如摘要展开/收起）。
+
+## 3. 代码结构与效率
+
+- 单文件过大（如 >500 行）时考虑拆分子组件或抽离逻辑。
+- 列表项等可考虑 `React.memo` 与稳定的回调（`useCallback`）以减少重渲染。
+- 统一工具与类型所在位置，便于复用和测试。
+
+## 4. 安全
+
+- 用户输入展示使用 React 默认转义，不引入 `dangerouslySetInnerHTML` 除非有明确 sanitization。
+- API 入参校验：长度、格式（如 date、URL）、类型；PUT/POST 合并时过滤掉 `undefined`，避免覆盖为“空”。
+- 鉴权：后台路由/API 需与 session 一致；评论等接口如需限流或鉴权需在审计中检查。
+
+## 5. 输出
+
+- 按「Bugs / 冗余 / 结构 / 安全」分类列出问题与文件/行号。
+- 优先修复影响正确性、安全与稳定性的项；结构类改进可分批进行。

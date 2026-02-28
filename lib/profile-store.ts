@@ -46,7 +46,11 @@ export async function getProfile(): Promise<Profile> {
 
 export async function saveProfile(updates: Partial<Profile>): Promise<Profile> {
   const current = await getProfile();
-  const next: Profile = { ...current, ...updates };
+  const filtered: Partial<Profile> = {};
+  for (const [k, v] of Object.entries(updates)) {
+    if (v !== undefined) (filtered as Record<string, unknown>)[k] = v;
+  }
+  const next: Profile = { ...current, ...filtered };
   await writeToFile(next);
   return next;
 }

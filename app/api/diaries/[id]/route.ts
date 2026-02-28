@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { isAdmin } from "@/lib/auth";
 import { getDiaries, saveDiaries, type Diary } from "@/lib/diaries-store";
 import { allDiaries } from "@/app/diaries.data";
-import { fetchWordPressPublishTimes } from "@/lib/wordpress-feed";
 
 export async function GET(
   _req: Request,
@@ -14,13 +13,7 @@ export async function GET(
   if (!diary) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  try {
-    const wpTimes = await fetchWordPressPublishTimes();
-    const publishedAt = wpTimes.get(diary.id) ?? diary.publishedAt;
-    return NextResponse.json({ ...diary, publishedAt });
-  } catch {
-    return NextResponse.json(diary);
-  }
+  return NextResponse.json(diary);
 }
 
 export async function PUT(
