@@ -10,7 +10,6 @@ export default function NewDiaryPage() {
   const [date, setDate] = useState(
     new Date().toISOString().slice(0, 10)
   );
-  const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
   const [tagsStr, setTagsStr] = useState("");
   const [images, setImages] = useState<string[]>([]);
@@ -31,7 +30,7 @@ export default function NewDiaryPage() {
       const res = await fetch("/api/diaries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, title, summary, tags, images }),
+        body: JSON.stringify({ date, title: "", summary, tags, images }),
       });
       if (!res.ok) {
         const data = await res.json();
@@ -70,6 +69,18 @@ export default function NewDiaryPage() {
       >
         <div>
           <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            发布到博客
+          </label>
+          <textarea
+            value={summary}
+            onChange={(e) => setSummary(e.target.value)}
+            rows={12}
+            placeholder="写点什么…"
+            className="mt-1 w-full rounded-lg border border-zinc-300 bg-transparent px-3 py-2 text-zinc-900 dark:border-zinc-700 dark:text-zinc-50"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
             日期
           </label>
           <input
@@ -78,29 +89,6 @@ export default function NewDiaryPage() {
             onChange={(e) => setDate(e.target.value)}
             className="mt-1 w-full max-w-xs rounded-lg border border-zinc-300 bg-transparent px-3 py-2 text-zinc-900 dark:border-zinc-700 dark:text-zinc-50"
             required
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            标题
-          </label>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-zinc-300 bg-transparent px-3 py-2 text-zinc-900 dark:border-zinc-700 dark:text-zinc-50"
-            required
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            摘要 / 正文
-          </label>
-          <textarea
-            value={summary}
-            onChange={(e) => setSummary(e.target.value)}
-            rows={10}
-            className="mt-1 w-full rounded-lg border border-zinc-300 bg-transparent px-3 py-2 text-zinc-900 dark:border-zinc-700 dark:text-zinc-50"
           />
         </div>
         <div>

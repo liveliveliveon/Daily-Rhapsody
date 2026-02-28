@@ -4,6 +4,8 @@ import { join } from "node:path";
 export type Diary = {
   id: number;
   date: string;
+  /** 实际发布时间（ISO），从 WordPress 等拉取后可写入，用于显示精确到分钟 */
+  publishedAt?: string;
   title: string;
   summary: string;
   tags?: string[];

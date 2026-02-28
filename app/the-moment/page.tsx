@@ -7,6 +7,7 @@ import Link from "next/link";
 type Diary = {
   id: number;
   date: string;
+  publishedAt?: string;
   title: string;
   summary: string;
   tags?: string[];
@@ -93,12 +94,23 @@ export default function TheMomentPage() {
                   )}
                 </div>
                 <div className="border-t border-zinc-100 px-4 py-3 dark:border-zinc-800">
-                  <div className="flex items-center gap-2 text-[0.7rem] uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                    {item.date}
-                  </div>
-                  <h2 className="mt-1 text-base font-medium tracking-tight text-zinc-900 dark:text-zinc-50">
-                    {item.title}
-                  </h2>
+                  <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                    滕君
+                  </p>
+                  <p className="text-[0.75rem] text-zinc-500 dark:text-zinc-400">
+                    {(() => {
+                      const d = new Date(
+                        item.publishedAt ?? item.date + "T12:00:00"
+                      );
+                      const y = d.getFullYear();
+                      const m = d.getMonth() + 1;
+                      const day = d.getDate();
+                      const h = d.getHours() % 12 || 12;
+                      const min = String(d.getMinutes()).padStart(2, "0");
+                      const ampm = d.getHours() < 12 ? "AM" : "PM";
+                      return `${y}/${m}/${day}, ${h}:${min}${ampm}`;
+                    })()}
+                  </p>
                   <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-zinc-600 dark:text-zinc-400 line-clamp-3">
                     {item.summary}
                   </p>

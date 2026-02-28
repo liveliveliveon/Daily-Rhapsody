@@ -4,13 +4,12 @@ import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import ImageUpload from "../../../ImageUpload";
-import TagInput from "../../TagInput";
+import TagInput from "../../../TagInput";
 
 export default function EditDiaryPage() {
   const params = useParams();
   const id = params.id as string;
   const [date, setDate] = useState("");
-  const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
   const [tagsStr, setTagsStr] = useState("");
   const [images, setImages] = useState<string[]>([]);
@@ -29,7 +28,6 @@ export default function EditDiaryPage() {
         }
         const d = await res.json();
         setDate(d.date ?? "");
-        setTitle(d.title ?? "");
         setSummary(d.summary ?? "");
         setTagsStr((d.tags ?? []).join(", "));
         setImages(Array.isArray(d.images) ? d.images : []);
@@ -53,7 +51,7 @@ export default function EditDiaryPage() {
       const res = await fetch(`/api/diaries/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, title, summary, tags, images }),
+        body: JSON.stringify({ date, summary, tags, images }),
       });
       if (!res.ok) {
         const data = await res.json();
@@ -96,6 +94,18 @@ export default function EditDiaryPage() {
       >
         <div>
           <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            发布到博客
+          </label>
+          <textarea
+            value={summary}
+            onChange={(e) => setSummary(e.target.value)}
+            rows={12}
+            placeholder="写点什么…"
+            className="mt-1 w-full rounded-lg border border-zinc-300 bg-transparent px-3 py-2 text-zinc-900 dark:border-zinc-700 dark:text-zinc-50"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
             日期
           </label>
           <input
@@ -104,29 +114,6 @@ export default function EditDiaryPage() {
             onChange={(e) => setDate(e.target.value)}
             className="mt-1 w-full max-w-xs rounded-lg border border-zinc-300 bg-transparent px-3 py-2 text-zinc-900 dark:border-zinc-700 dark:text-zinc-50"
             required
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            标题
-          </label>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-zinc-300 bg-transparent px-3 py-2 text-zinc-900 dark:border-zinc-700 dark:text-zinc-50"
-            required
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            摘要 / 正文
-          </label>
-          <textarea
-            value={summary}
-            onChange={(e) => setSummary(e.target.value)}
-            rows={10}
-            className="mt-1 w-full rounded-lg border border-zinc-300 bg-transparent px-3 py-2 text-zinc-900 dark:border-zinc-700 dark:text-zinc-50"
           />
         </div>
         <div>

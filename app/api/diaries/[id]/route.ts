@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { isAdmin } from "@/lib/auth";
 import { getDiaries, saveDiaries, type Diary } from "@/lib/diaries-store";
 import { allDiaries } from "@/app/diaries.data";
+import { fetchWordPressPublishTimes } from "@/lib/wordpress-feed";
 
 export async function GET(
   _req: Request,
@@ -13,7 +14,13 @@ export async function GET(
   if (!diary) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  return NextResponse.json(diary);
+  try {
+    const wpTimes = await fetchWordPressPublishTimes();
+    const publishedAt = wpTimes.get(diary.id) ?? diary.publishedAt;
+    return NextResponse.json({ ...diary, publishedAt });
+  } catch {
+    return NextResponse.json(diary);
+  }
 }
 
 export async function PUT(
@@ -25,7 +32,7 @@ export async function PUT(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { id } = await params;
-  let body: { date?: string; title?: string; summary?: string; tags?: string[]; images?: string[] };
+  let body: { date?: string; publishedAt?: string; title?: string; summary?: string; tags?: string[]; images?: string[] };
   try {
     body = await req.json();
   } catch {
@@ -39,6 +46,7 @@ export async function PUT(
   const updated: Diary = {
     ...diaries[index],
     date: body.date ?? diaries[index].date,
+    publishedAt: body.publishedAt !== undefined ? body.publishedAt : diaries[index].publishedAt,
     title: body.title ?? diaries[index].title,
     summary: body.summary ?? diaries[index].summary,
     tags: body.tags !== undefined ? body.tags : diaries[index].tags,
@@ -46,7 +54,9 @@ export async function PUT(
   };
   diaries[index] = updated;
   diaries.sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    (a, b) =>
+      new Date(b.publishedAt ?? b.date).getTime() -
+      new Date(a.publishedAt ?? a.date).getTime()
   );
   await saveDiaries(diaries);
   return NextResponse.json(updated);

@@ -2,10 +2,20 @@ import { NextResponse } from "next/server";
 import { isAdmin } from "@/lib/auth";
 import { getDiaries, saveDiaries, nextId, type Diary } from "@/lib/diaries-store";
 import { allDiaries } from "@/app/diaries.data";
+import { fetchWordPressPublishTimes } from "@/lib/wordpress-feed";
 
 export async function GET() {
   const diaries = await getDiaries(allDiaries);
-  return NextResponse.json(diaries);
+  try {
+    const wpTimes = await fetchWordPressPublishTimes();
+    const enriched = diaries.map((d) => ({
+      ...d,
+      publishedAt: wpTimes.get(d.id) ?? d.publishedAt,
+    }));
+    return NextResponse.json(enriched);
+  } catch {
+    return NextResponse.json(diaries);
+  }
 }
 
 export async function POST(req: Request) {
@@ -31,7 +41,9 @@ export async function POST(req: Request) {
   };
   diaries.unshift(newDiary);
   diaries.sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    (a, b) =>
+      new Date(b.publishedAt ?? b.date).getTime() -
+      new Date(a.publishedAt ?? a.date).getTime()
   );
   await saveDiaries(diaries);
   return NextResponse.json(newDiary);
