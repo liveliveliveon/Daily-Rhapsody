@@ -448,10 +448,13 @@ export default function EntriesPage() {
   const [scrollY, setScrollY] = useState(0);
   const [eggPullY, setEggPullY] = useState(0);
   const [isRebounding, setIsRebounding] = useState(false);
+  const [isReturnToTopAnimating, setIsReturnToTopAnimating] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const contentWrapperRef = useRef<HTMLDivElement>(null);
   const returningToTopRef = useRef(false);
   const headerCollapsedRef = useRef(false);
   const returnToTopPhaseRef = useRef<0 | 1 | 2>(0);
+  const returnToTopRafRef = useRef<number>(0);
   const eggPullAccumRef = useRef(0);
   const eggReleaseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const touchLastYRef = useRef(0);
@@ -467,33 +470,66 @@ export default function EntriesPage() {
   const maxTagCount = tagCounts[0]?.value ?? 1;
 
   const runReturnToTop = useCallback(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || !contentWrapperRef.current) return;
     const startY = window.scrollY;
     if (startY <= 0) return;
 
     returnToTopPhaseRef.current = 1;
     returningToTopRef.current = true;
     setScrollY(startY);
-    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+    setIsReturnToTopAnimating(true);
+    document.body.style.overflow = "hidden";
+
+    const duration = Math.min(3000, 600 + 320 * Math.log(1 + startY / 300));
+    const startT = performance.now();
+    const el = contentWrapperRef.current;
+    function easeOutCubic(x: number) {
+      return 1 - (1 - x) ** 3;
+    }
+    function tick(now: number) {
+      const elapsed = now - startT;
+      const t = Math.min(elapsed / duration, 1);
+      const progress = easeOutCubic(t);
+      const offset = Math.round(startY * (1 - progress));
+      if (el.style) {
+        el.style.willChange = "transform";
+        el.style.transform = `translateY(-${offset}px)`;
+      }
+      if (t < 1) {
+        returnToTopRafRef.current = requestAnimationFrame(tick);
+      } else {
+        el.style.willChange = "";
+        el.style.transform = "";
+        document.body.style.overflow = "";
+        window.scrollTo(0, 0);
+        returnToTopPhaseRef.current = 0;
+        returningToTopRef.current = false;
+        setIsReturnToTopAnimating(false);
+        setScrollY(0);
+      }
+    }
+    returnToTopRafRef.current = requestAnimationFrame(tick);
   }, []);
 
   useEffect(() => {
     function onScroll() {
+      if (returnToTopPhaseRef.current !== 0) return;
       const y = typeof window !== "undefined" ? window.scrollY : 0;
-      if (returnToTopPhaseRef.current !== 0) {
-        if (y < 2) {
-          returnToTopPhaseRef.current = 0;
-          returningToTopRef.current = false;
-          setScrollY(0);
-        }
-        return;
-      }
       if (y < 2) returningToTopRef.current = false;
       setScrollY(y);
     }
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (returnToTopRafRef.current) cancelAnimationFrame(returnToTopRafRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      document.body.style.overflow = "";
+    };
   }, []);
 
   const loadPage = useCallback(
@@ -787,9 +823,17 @@ export default function EntriesPage() {
           })()}
 
           <div
+            ref={contentWrapperRef}
             style={{
-              transform: !hasMore && (eggPullY > 0 || isRebounding) ? `translate3d(0, -${eggPullY}px, 0)` : undefined,
-              willChange: !hasMore && eggPullY > 0 && !isRebounding ? "transform" : undefined,
+              transform: isReturnToTopAnimating
+                ? undefined
+                : !hasMore && (eggPullY > 0 || isRebounding)
+                  ? `translate3d(0, -${eggPullY}px, 0)`
+                  : undefined,
+              willChange:
+                isReturnToTopAnimating || (!hasMore && eggPullY > 0 && !isRebounding)
+                  ? "transform"
+                  : undefined,
               paddingBottom: !hasMore && (eggPullY > 0 || isRebounding) ? eggPullY + 88 : 0,
             }}
             className={!hasMore && isRebounding ? "rebound-transition" : ""}
@@ -859,24 +903,19 @@ export default function EntriesPage() {
             {loadingMore && (
               <div className="flex justify-center py-6" role="status" aria-label="加载中">
                 <svg
-                  className="h-7 w-7 animate-spin text-zinc-400 dark:text-zinc-500"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
+                  className="h-6 w-6 animate-spin text-zinc-400 dark:text-zinc-500"
                   viewBox="0 0 24 24"
                   aria-hidden
                 >
                   <circle
-                    className="opacity-25"
                     cx="12"
                     cy="12"
-                    r="10"
+                    r="9"
+                    fill="none"
                     stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeDasharray="32 24"
                   />
                 </svg>
               </div>
