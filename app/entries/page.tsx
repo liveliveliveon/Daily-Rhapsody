@@ -485,7 +485,8 @@ export default function EntriesPage() {
     const targetCalendar = SCROLL_TARGET_CALENDAR;
     const startY = typeof window !== "undefined" ? window.scrollY : 0;
 
-    const duration1 = Math.min(2400, 600 + Math.max(0, startY - targetCalendar) * 0.35);
+    const distance = Math.max(0, startY - targetCalendar);
+    const duration1 = Math.min(1420, 600 + 320 * Math.log(1 + distance / 300));
     const startT1 = performance.now();
     function tick1(now: number) {
       const elapsed = now - startT1;
