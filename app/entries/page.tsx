@@ -488,14 +488,15 @@ export default function EntriesPage() {
     const duration = Math.min(3000, 600 + 320 * Math.log(1 + startY / 300));
     const startT = performance.now();
     const el = contentWrapperRef.current;
-    function easeOutCubic(x: number) {
-      return 1 - (1 - x) ** 3;
+    // 强 ease-out，末尾更慢，避免最后一段显得突然加速
+    function easeOutQuart(x: number) {
+      return 1 - (1 - x) ** 4;
     }
     function tick(now: number) {
       const elapsed = now - startT;
       const t = Math.min(elapsed / duration, 1);
-      const progress = easeOutCubic(t);
-      const offset = Math.round(startY * (1 - progress));
+      const progress = easeOutQuart(t);
+      const offset = startY * (1 - progress);
       if (el.style) {
         el.style.willChange = "transform";
         el.style.transform = `translateY(-${offset}px)`;
@@ -513,7 +514,7 @@ export default function EntriesPage() {
         setReturnToTopProgress(null);
         setScrollY(0);
         window.scrollTo(0, 0);
-        // 到顶后用与回顶相同的 easeOutCubic 曲线展开 header，时长略短以延续「到达」感
+        // 到顶后用与回顶相同的 easeOutQuart 曲线展开 header，时长略短以延续「到达」感
         const expandDuration = Math.min(420, 200 + duration * 0.2);
         const expandStartT = performance.now();
         headerExpandProgressRef.current = 0;
@@ -521,7 +522,7 @@ export default function EntriesPage() {
         function expandTick(now: number) {
           const elapsed = now - expandStartT;
           const u = Math.min(elapsed / expandDuration, 1);
-          const eased = easeOutCubic(u);
+          const eased = easeOutQuart(u);
           headerExpandProgressRef.current = eased;
           setHeaderExpandProgress(eased);
           if (u < 1) {
@@ -728,7 +729,7 @@ export default function EntriesPage() {
               ? (headerExpandProgressRef.current ?? headerExpandProgress ?? 0)
               : 0;
             const progress = isReturning ? (returnToTopProgressRef.current ?? returnToTopProgress ?? 0) : 0;
-            // 回顶过程中 header 保持收缩；到顶后按与回顶相同的 easeOutCubic 曲线展开
+            // 回顶过程中 header 保持收缩；到顶后按与回顶相同的 easeOutQuart 曲线展开
             const height =
               isHeaderExpanding
                 ? HEADER_COLLAPSED + (HEADER_EXPANDED - HEADER_COLLAPSED) * expandProgress
